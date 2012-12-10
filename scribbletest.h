@@ -2,13 +2,14 @@
 #define SCRIBBLETEST_H
 
 #include "scribblearea.h"
+#include "bookmarkview.h"
 
 class ScribbleTest {
 public:
   ScribbleTest(const char* cfgfile = NULL);
   ~ScribbleTest();
 
-  int runAll();
+  int runAll(const char *path);
 
 private:
   ScribbleConfig* scribbleConfig;

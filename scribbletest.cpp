@@ -44,7 +44,7 @@ bool ScribbleTest::testCompareFiles(const char* f1, const char* f2)
   simplebuf b2;
   readall(&b1, f1);
   readall(&b2, f2);
-  if(b1.pos != b2.pos)
+  if(b1.pos != b2.pos || b1.pos == 0)
     return false;
   for(unsigned int ii = 0; ii < b1.pos; ii++) {
     if(b1.data[ii] != b2.data[ii])
@@ -57,7 +57,7 @@ bool ScribbleTest::testCompareFiles(const char* f1, const char* f2)
 // TODO: have doInputEvent and setMode print args so that we can cut and paste to test fns
 // TODO: add some tests to capture scribbleArea->imgPaint->image and compare to a ref
 
-int ScribbleTest::runAll()
+int ScribbleTest::runAll(const char* path)
 {
   int failed = 0;
   char buff[256];
@@ -70,22 +70,23 @@ int ScribbleTest::runAll()
     &ScribbleTest::test4
   };
 
-  for(int ii = 0; ii < sizeof(tests)/sizeof(tests[0]); ii++) {
+  for(unsigned int ii = 0; ii < sizeof(tests)/sizeof(tests[0]); ii++) {
     scribbleArea->newDocument();
     // attempt to open input file; fails quietly if not present
-    sprintf(buff, "c:/temp/scribble/test/test%d_in.html", ii);
+    // OH NOES!!! buffer overrun danger here!
+    sprintf(buff, "%s/test/test%d_in.html", path, ii);
     scribbleArea->openDocument(buff);
     // wow...
     (this->*tests[ii])();
 
-    scribbleArea->doPaintEvent(screenPaint, screenRect);
-    sprintf(buff, "c:/temp/scribble/test/test%d_out.png", ii);
+    scribbleArea->doPaintEvent(screenPaint);  //, screenRect);
+    sprintf(buff, "%s/test/test%d_out.png", path, ii);
     screenImg->save(buff, "png");
     // write output file
-    sprintf(buff, "c:/temp/scribble/test/test%d_out.html", ii);
+    sprintf(buff, "%s/test/test%d_out.html", path, ii);
     scribbleArea->saveDocument(buff);
     // compare output to reference; tests of one-file-per-page must handle the svg files themselves
-    sprintf(reffile, "c:/temp/scribble/test/test%d_ref.html", ii);
+    sprintf(reffile, "%s/test/test%d_ref.html", path, ii);
     if(testCompareFiles(buff, reffile))
       remove(buff);
     else
