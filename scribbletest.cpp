@@ -1,5 +1,6 @@
 #include "scribbletest.h"
 
+// Ideally, these tests should be run under valgrind to help check for memory leaks
 
 // Just get main view working ... deal with bookmarks later
 ScribbleTest::ScribbleTest(const char* cfgfile)
@@ -64,7 +65,9 @@ int ScribbleTest::runAll()
   void (ScribbleTest::*tests[])() = {
     &ScribbleTest::test0,
     &ScribbleTest::test1,
-    &ScribbleTest::test2
+    &ScribbleTest::test2,
+    &ScribbleTest::test3,
+    &ScribbleTest::test4
   };
 
   for(int ii = 0; ii < sizeof(tests)/sizeof(tests[0]); ii++) {
@@ -94,6 +97,15 @@ int ScribbleTest::runAll()
 void ScribbleTest::ie(Dim x, Dim y, Dim p, int src, int ev, int mm)
 {
   scribbleArea->doInputEvent(x, y, p, (ScribbleArea::inputsource_t)src, (ScribbleArea::inputevent_t)ev, mm);
+}
+
+// draw a simple stroke
+void ScribbleTest::ss(Dim offset)
+{
+  ie(104.4 + offset, 184.4 + offset, 0, pen, press);
+  ie(124.5 + offset, 162.2 + offset, 0, pen);
+  ie(131.8 + offset, 167.3 + offset, 0, pen);
+  ie(0, 0, 0, pen, release);
 }
 
 void ScribbleTest::test0()
@@ -239,4 +251,54 @@ void ScribbleTest::test2()
   ie(208.000, 84.000, 0.000, 1, 0, 0);
   ie(210.000, 85.000, 0.000, 1, 0, 0);
   ie(0.000, 0.000, 0.000, 1, -1, 0);
+}
+
+// this test is mainly intended for finding memory leaks (so run it under valgrind)
+void ScribbleTest::test3()
+{
+  ss(0);
+  ss(5);
+  scribbleArea->selectAll();
+  scribbleArea->deleteSelection();
+  scribbleArea->undo();
+  scribbleArea->undo();
+  ss(10);
+  ss(15);
+  scribbleArea->undo();
+  ss(20);
+  scribbleArea->selectAll();
+  scribbleArea->copyToClipboard();
+  scribbleArea->deleteSelection();
+  ss(30);
+  ss(40);
+  scribbleArea->selectAll();
+  scribbleArea->copyToClipboard();
+  scribbleArea->doPaste();
+  ss(50);
+  scribbleArea->undo();
+  scribbleArea->undo();
+  scribbleArea->doPaste();
+  scribbleArea->deleteSelection();
+  ss(60);
+  scribbleArea->undo();
+  scribbleArea->undo();
+  ss(70);
+  scribbleArea->doPaste();
+  scribbleArea->deleteSelection();
+  scribbleArea->undo();
+  scribbleArea->undo();
+  ss(80);
+}
+
+// test deletion of page with active selection
+void ScribbleTest::test4()
+{
+  ss(0);
+  scribbleArea->nextPage(true);
+  ss(10);
+  ss(20);
+  scribbleArea->selectAll();
+  scribbleArea->copyToClipboard();
+  scribbleArea->deletePage(1);
+  scribbleArea->undo();
 }
