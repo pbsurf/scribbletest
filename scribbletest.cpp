@@ -7,6 +7,8 @@ ScribbleTest::ScribbleTest(const char* cfgfile)
 {
   scribbleConfig = new ScribbleConfig();
   scribbleConfig->set("singleFile", true);
+  // don't write out rule lines - they just clutter the output
+  scribbleConfig->set("saveRuleLines", false);
   //scribbleConfig->loadConfigFile(cfgfile);
   Painter::initPaintSystem();
   scribbleMode = new ScribbleMode(scribbleConfig);
@@ -67,7 +69,8 @@ int ScribbleTest::runAll(const char* path)
     &ScribbleTest::test1,
     &ScribbleTest::test2,
     &ScribbleTest::test3,
-    &ScribbleTest::test4
+    &ScribbleTest::test4,
+    &ScribbleTest::test5
   };
 
   for(unsigned int ii = 0; ii < sizeof(tests)/sizeof(tests[0]); ii++) {
@@ -302,4 +305,25 @@ void ScribbleTest::test4()
   scribbleArea->copyToClipboard();
   scribbleArea->deletePage(1);
   scribbleArea->undo();
+}
+
+// test setting page properties and growing page
+void ScribbleTest::test5()
+{
+  // write out rule lines for this test
+  scribbleArea->cfg->set("saveRuleLines", true);
+  PageProperties props(600, 800, 30, 30, 30, 0xFFFFFF00, 0x7F0000FF);
+  ss(0);
+  ss(10);
+  scribbleArea->setPageProperties(&props, false, true, false);
+  ss(20);
+  // add new page
+  scribbleArea->nextPage(true);
+  ss(0);
+  // grow new page
+  ie(104.4, 900, 0, pen, press);
+  ie(124.5, 903, 0, pen);
+  ie(131.8, 900, 0, pen);
+  ie(0, 0, 0, pen, release);
+  ss(20);
 }
