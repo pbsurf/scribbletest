@@ -70,7 +70,8 @@ int ScribbleTest::runAll(const char* path)
     &ScribbleTest::test2,
     &ScribbleTest::test3,
     &ScribbleTest::test4,
-    &ScribbleTest::test5
+    &ScribbleTest::test5,
+    &ScribbleTest::test6
   };
 
   for(unsigned int ii = 0; ii < sizeof(tests)/sizeof(tests[0]); ii++) {
@@ -326,4 +327,32 @@ void ScribbleTest::test5()
   ie(131.8, 900, 0, pen);
   ie(0, 0, 0, pen, release);
   ss(20);
+}
+
+void ScribbleTest::test6()
+{
+  // test6_in.html has been loaded - that will test opening file to saved position
+  // make a lasso selection
+  scribbleMode->setMode(20);
+  ie(475.000, 199.000, 0.000, 1, 1, 0);
+  ie(450.000, 175.000, 0.000, 1, 0, 0);
+  ie(329.000, 269.000, 0.000, 1, 0, 0);
+  ie(435.000, 386.000, 0.000, 1, 0, 0);
+  ie(553.000, 268.000, 0.000, 1, 0, 0);
+  ie(516.000, 240.000, 0.000, 1, 0, 0);
+  ie(436.000, 317.000, 0.000, 1, 0, 0);
+  ie(387.000, 269.000, 0.000, 1, 0, 0);
+  ie(452.000, 215.000, 0.000, 1, 0, 0);
+  ie(0.000, 0.000, 0.000, 1, -1, 0);
+  // now move the selection
+  ie(441.000, 263.000, 0.000, 1, 1, 0);
+  ie(432.000, 319.000, 0.000, 1, 0, 0);
+  ie(431.000, 326.000, 0.000, 1, 0, 0);
+  ie(431.000, 342.000, 0.000, 1, 0, 0);
+  ie(429.000, 399.000, 0.000, 1, 0, 0);
+  ie(429.000, 407.000, 0.000, 1, 0, 0);
+  ie(424.000, 454.000, 0.000, 1, 0, 0);
+  ie(425.000, 473.000, 0.000, 1, 0, 0);
+  ie(429.000, 476.000, 0.000, 1, 0, 0);
+  ie(0.000, 0.000, 0.000, 1, -1, 0);
 }
