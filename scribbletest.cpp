@@ -71,7 +71,9 @@ int ScribbleTest::runAll(const char* path)
     &ScribbleTest::test3,
     &ScribbleTest::test4,
     &ScribbleTest::test5,
-    &ScribbleTest::test6
+    &ScribbleTest::test6,
+    &ScribbleTest::test7,
+    &ScribbleTest::test8
   };
 
   for(unsigned int ii = 0; ii < sizeof(tests)/sizeof(tests[0]); ii++) {
@@ -80,6 +82,9 @@ int ScribbleTest::runAll(const char* path)
     // OH NOES!!! buffer overrun danger here!
     sprintf(buff, "%s/test/test%d_in.html", path, ii);
     scribbleArea->openDocument(buff);
+    // reset mode
+    scribbleMode->setRuled(true);
+    scribbleMode->setMode(MODE_STROKE);
     // wow...
     (this->*tests[ii])();
 
@@ -113,6 +118,23 @@ void ScribbleTest::ss(Dim offset)
   ie(0, 0, 0, pen, release);
 }
 
+void ScribbleTest::s1(Dim xoffset, Dim yoffset)
+{
+  ie(104.4 + xoffset, 184.4 + yoffset, 0, pen, press);
+  ie(124.5 + xoffset, 162.2 + yoffset, 0, pen);
+  ie(131.8 + xoffset, 167.3 + yoffset, 0, pen);
+  ie(0, 0, 0, pen, release);
+}
+
+// stroke centered on (0,0)
+void ScribbleTest::s2(Dim xoffset, Dim yoffset)
+{
+  ie(10 + xoffset, -14.8 +yoffset, 0, pen, press);
+  ie(-9.9 + xoffset, 0.1 + yoffset, 0, pen);
+  ie(9.8 + xoffset, 15.1 + yoffset, 0, pen);
+  ie(0, 0, 0, pen, release);
+}
+
 void ScribbleTest::test0()
 {
   ie(104.4, 184.4, 0, pen, press);
@@ -128,6 +150,7 @@ void ScribbleTest::test0()
   ie(0, 0, 0, pen, release);
 }
 
+// similar to test0, but loads file test1_in.html
 void ScribbleTest::test1()
 {
   ie(104.4, 184.4, 0, pen, press);
@@ -329,9 +352,9 @@ void ScribbleTest::test5()
   ss(20);
 }
 
+// test opening file (test6_in.html) to saved position and lasso selection
 void ScribbleTest::test6()
 {
-  // test6_in.html has been loaded - that will test opening file to saved position
   // make a lasso selection
   scribbleMode->setMode(20);
   ie(475.000, 199.000, 0.000, 1, 1, 0);
@@ -355,4 +378,109 @@ void ScribbleTest::test6()
   ie(425.000, 473.000, 0.000, 1, 0, 0);
   ie(429.000, 476.000, 0.000, 1, 0, 0);
   ie(0.000, 0.000, 0.000, 1, -1, 0);
+}
+
+// test insert space reflow
+void ScribbleTest::test7()
+{
+  // easier to figure out what's going on if screen space and Dim space are the same
+  scribbleArea->gotoPos(0, Point(0,0));
+  PageProperties props(700, 800, 0, 40, 100);
+  scribbleArea->setPageProperties(&props, false, true, false);
+  // create 3 lines of "text";  note: width of ss is 27.4
+  for(int offset = 15; offset < 500; offset += 139) {
+    s1(offset, 0);
+    s1(offset + 30, 0);
+    s1(offset + 60, 0);
+    s1(offset + 90, 0);
+  }
+  for(int offset = 5; offset < 500; offset += 141) {
+    s1(offset, 40);
+    s1(offset + 30, 40);
+    s1(offset + 60, 40);
+    s1(offset + 90, 40);
+  }
+  for(int offset = 10; offset < 500; offset += 140) {
+    s1(offset, 80);
+    s1(offset + 30, 80);
+    s1(offset + 60, 80);
+    s1(offset + 90, 80);
+  }
+  // insert space on first line
+  scribbleMode->setMode(MODE_INSSPACERULED);
+  ie(102, 180, 0, pen, press);
+  ie(200, 180, 0, pen);
+  ie(310, 180, 0, pen);
+  ie(0, 0, 0, pen, release);
+
+  // insert some more space, then undo
+  scribbleMode->setMode(MODE_INSSPACERULED);
+  ie(102, 180, 0, pen, press);
+  ie(200, 180, 0, pen);
+  ie(310, 180, 0, pen);
+  ie(0, 0, 0, pen, release);
+  scribbleArea->undo();
+
+  // test non-ruled insert space
+  s1(0, 280);
+  s1(30, 280);
+  s1(60, 280);
+  s1(90, 280);
+  scribbleMode->setMode(MODE_INSSPACEVERT);
+  ie(102, 420, 0, pen, press);
+  ie(103, 440, 0, pen);
+  ie(105, 470, 0, pen);
+  ie(0, 0, 0, pen, release);
+}
+
+// test ruled select and moving strokes between pages
+void ScribbleTest::test8()
+{
+  PageProperties props(700, 800, 0, 40, 100);
+  scribbleArea->setPageProperties(&props, false, true, false);
+  // add new page
+  s2(400,60);
+  scribbleArea->nextPage(true);
+  scribbleArea->gotoPos(0, Point(0,0));
+  scribbleArea->selectAll();
+  scribbleArea->deleteSelection();
+  s2(200, 380);
+  s2(150, 420);
+  s2(200, 420);
+  s2(250, 420);
+  s2(600, 420);
+  s2(200, 460);
+  scribbleMode->setMode(MODE_SELECTRULED);
+  ie(110, 420, 0, pen, press);
+  ie(275, 420, 0, pen);
+  ie(350, 420, 0, pen);
+  ie(0, 0, 0, pen, release);
+  // drag selection to second page
+  ie(200, 420, 0, pen, press);
+  ie(210, 750, 0, pen);
+  ie(215, 1300, 0, pen);
+  ie(0, 0, 0, pen, release);
+  // put pen down to clear selection
+  s2(500, 1300);
+
+  // return to first page and test erasers
+  scribbleArea->gotoPos(0, Point(0,0));
+  s2(200, 60);
+  s2(150, 100);
+  s2(200, 100);
+  s2(250, 100);
+  s2(600, 100);
+  s2(200, 140);
+  scribbleMode->setMode(MODE_ERASERULED);
+  ie(110, 100, 0, pen, press);
+  ie(150, 100, 0, pen);
+  ie(200, 100, 0, pen);
+  ie(250, 130, 0, pen);
+  ie(150, 130, 0, pen);
+  ie(0, 0, 0, pen, release);
+  scribbleMode->setMode(MODE_ERASESTROKE);
+  ie(599, 62, 0, pen, press);
+  ie(600, 100, 0, pen);
+  ie(602, 139, 0, pen);
+  ie(0, 0, 0, pen, release);
 }
