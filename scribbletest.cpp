@@ -73,7 +73,8 @@ int ScribbleTest::runAll(const char* path)
     &ScribbleTest::test5,
     &ScribbleTest::test6,
     &ScribbleTest::test7,
-    &ScribbleTest::test8
+    &ScribbleTest::test8,
+    &ScribbleTest::test9
   };
 
   for(unsigned int ii = 0; ii < sizeof(tests)/sizeof(tests[0]); ii++) {
@@ -482,5 +483,58 @@ void ScribbleTest::test8()
   ie(599, 62, 0, pen, press);
   ie(600, 100, 0, pen);
   ie(602, 139, 0, pen);
+  ie(0, 0, 0, pen, release);
+}
+
+// test ruled mode tools on unruled page
+void ScribbleTest::test9()
+{
+  scribbleArea->gotoPos(0, Point(0,0));
+  PageProperties props(700, 800, 0, 0, 0);
+  scribbleArea->setPageProperties(&props, false, true, false);
+  // create 4 lines of "text"
+  for(int offset = 125; offset < 600; offset += 125) {
+    s2(offset, 41);
+    s2(offset + 25, 37);
+    s2(offset + 50, 42);
+    s2(offset + 75, 40);
+  }
+  for(int offset = 125; offset < 600; offset += 118) {
+    s2(offset, 82);
+    s2(offset + 25, 79);
+    s2(offset + 50, 77);
+    s2(offset + 75, 81);
+  }
+  for(int offset = 115; offset < 600; offset += 121) {
+    s2(offset, 118);
+    s2(offset + 25, 117);
+    s2(offset + 50, 123);
+    s2(offset + 75, 120);
+  }
+  for(int offset = 120; offset < 600; offset += 120) {
+    s2(offset, 160);
+    s2(offset + 26, 161);
+    s2(offset + 53, 157);
+    s2(offset + 76, 159);
+  }
+  // add a bookmark
+  scribbleMode->setMode(MODE_BOOKMARK);
+  ie(135, 110, 0, pen, press);
+  ie(106, 140, 0, pen);
+  ie(60, 160, 0, pen);
+  ie(0, 0, 0, pen, release);
+  // insert space
+  scribbleMode->setMode(MODE_INSSPACERULED);
+  ie(235, 110, 0, pen, press);
+  ie(206, 140, 0, pen);
+  ie(184, 195, 0, pen);
+  ie(0, 0, 0, pen, release);
+  // ruled erase
+  scribbleMode->setMode(MODE_ERASERULED);
+  ie(60, 90, 0, pen, press);
+  ie(140, 92, 0, pen);
+  ie(200, 87, 0, pen);
+  ie(290, 86, 0, pen);
+  ie(385, 89, 0, pen);
   ie(0, 0, 0, pen, release);
 }
