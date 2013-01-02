@@ -74,7 +74,8 @@ int ScribbleTest::runAll(const char* path)
     &ScribbleTest::test6,
     &ScribbleTest::test7,
     &ScribbleTest::test8,
-    &ScribbleTest::test9
+    &ScribbleTest::test9,
+    &ScribbleTest::test10
   };
 
   for(unsigned int ii = 0; ii < sizeof(tests)/sizeof(tests[0]); ii++) {
@@ -130,10 +131,32 @@ void ScribbleTest::s1(Dim xoffset, Dim yoffset)
 // stroke centered on (0,0)
 void ScribbleTest::s2(Dim xoffset, Dim yoffset)
 {
-  ie(10 + xoffset, -14.8 +yoffset, 0, pen, press);
+  ie(10 + xoffset, -14.8 + yoffset, 0, pen, press);
   ie(-9.9 + xoffset, 0.1 + yoffset, 0, pen);
   ie(9.8 + xoffset, 15.1 + yoffset, 0, pen);
   ie(0, 0, 0, pen, release);
+}
+
+// MultiStroke (HyperRef) consisting of two strokes
+void ScribbleTest::hr(Dim xoffset, Dim yoffset)
+{
+  ie(-10.1 + xoffset, -14.8 + yoffset, 0, pen, press);
+  ie(9.8 + xoffset, 0.1 + yoffset, 0, pen);
+  ie(-9.7 + xoffset, 15.1 + yoffset, 0, pen);
+  ie(0, 0, 0, pen, release);
+
+  ie(-10 + 10 + xoffset, -13.8 + yoffset, 0, pen, press);
+  ie(9.9 + 10 + xoffset, 0.1 + yoffset, 0, pen);
+  ie(-9.8 + 10 + xoffset, 12.4 + yoffset, 0, pen);
+  ie(0, 0, 0, pen, release);
+
+  scribbleMode->setMode(MODE_SELECTRECT);
+  ie(-12 + xoffset, -17 + yoffset, 0, pen, press);
+  ie(xoffset, yoffset, 0, pen);
+  ie(22 + xoffset, 17 + yoffset, 0, pen);
+  ie(0, 0, 0, pen, release);
+  // this will clear the selection
+  scribbleArea->createHyperRef("http://www.styluslabs.com");
 }
 
 void ScribbleTest::test0()
@@ -286,6 +309,7 @@ void ScribbleTest::test2()
 void ScribbleTest::test3()
 {
   ss(0);
+  hr(300, 300);
   ss(5);
   scribbleArea->selectAll();
   scribbleArea->deleteSelection();
@@ -536,5 +560,41 @@ void ScribbleTest::test9()
   ie(200, 87, 0, pen);
   ie(290, 86, 0, pen);
   ie(385, 89, 0, pen);
+  ie(0, 0, 0, pen, release);
+
+  // Must draw bookmarks so that findBookmark will work
+  scribbleArea->getDocument()->drawBookmarks(screenPaint, NULL);
+
+  scribbleArea->nextPage(true);
+  // create hyperref, then convert (along with another stroke) to point to bookmark on first page
+  hr(150, 100);
+  s2(200, 100);
+  scribbleArea->selectAll();
+  scribbleArea->createHyperRef(scribbleArea->getDocument()->findBookmark(20));
+
+  // add bookmark to 2nd page ... id should not be serialized for this one
+  scribbleMode->setMode(MODE_BOOKMARK);
+  ie(135, 150, 0, pen, press);
+  ie(106, 180, 0, pen);
+  ie(65, 200, 0, pen);
+  ie(0, 0, 0, pen, release);
+}
+
+// test changing properties and ins space ruled with hyperref
+void ScribbleTest::test10()
+{
+  scribbleArea->gotoPos(0, Point(0,0));
+  hr(150, 100);
+  s2(200, 100);
+  scribbleArea->selectAll();
+
+  scribbleArea->setPenColor(Painter::BLUE);
+  scribbleArea->setPenWidth(2);
+  scribbleArea->undo();
+
+  scribbleMode->setMode(MODE_INSSPACERULED);
+  ie(104, 100, 0, pen, press);
+  ie(195, 98, 0, pen);
+  ie(298, 103, 0, pen);
   ie(0, 0, 0, pen, release);
 }
