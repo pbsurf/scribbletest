@@ -9,7 +9,11 @@ public:
   ScribbleTest(const char* cfgfile = NULL);
   ~ScribbleTest();
 
-  int runAll(const char *path);
+  void runAll(const char* path);
+
+  // results to be read by called;
+  int nFailed;
+  Timestamp runAllTime;
 
 private:
   ScribbleConfig* scribbleConfig;

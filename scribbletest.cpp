@@ -2,6 +2,11 @@
 
 // Ideally, these tests should be run under valgrind to help check for memory leaks
 
+// runAll run times (tests 0 - 10):
+// Debian-NDK VM: 440 ms (debug build)
+// Qt-XP VM: TBD
+// X61T: TBD
+
 // Just get main view working ... deal with bookmarks later
 ScribbleTest::ScribbleTest(const char* cfgfile)
 {
@@ -56,12 +61,11 @@ bool ScribbleTest::testCompareFiles(const char* f1, const char* f2)
 }
 
 // a bunch of integration tests ... any "*_out.html" files present after test indicate a failure
-// TODO: have doInputEvent and setMode print args so that we can cut and paste to test fns
 // TODO: add some tests to capture scribbleArea->imgPaint->image and compare to a ref
 
-int ScribbleTest::runAll(const char* path)
+void ScribbleTest::runAll(const char* path)
 {
-  int failed = 0;
+  nFailed = 0;
   char buff[256];
   char reffile[256];
   void (ScribbleTest::*tests[])() = {
@@ -78,6 +82,7 @@ int ScribbleTest::runAll(const char* path)
     &ScribbleTest::test10
   };
 
+  runAllTime = mSecSinceEpoch();
   for(unsigned int ii = 0; ii < sizeof(tests)/sizeof(tests[0]); ii++) {
     scribbleArea->newDocument();
     // attempt to open input file; fails quietly if not present
@@ -101,9 +106,9 @@ int ScribbleTest::runAll(const char* path)
     if(testCompareFiles(buff, reffile))
       remove(buff);
     else
-      failed++;
+      nFailed++;
   }
-  return failed;
+  runAllTime = mSecSinceEpoch() - runAllTime;
 }
 
 void ScribbleTest::ie(Dim x, Dim y, Dim p, int src, int ev, int mm)
