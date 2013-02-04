@@ -113,7 +113,7 @@ void ScribbleTest::runAll(const char* path)
 
 void ScribbleTest::ie(Dim x, Dim y, Dim p, int src, int ev, int mm)
 {
-  scribbleArea->doInputEvent(x, y, p, (ScribbleArea::inputsource_t)src, (ScribbleArea::inputevent_t)ev, mm);
+  scribbleArea->scribbleInput->doInputEvent(x, y, p, (inputsource_t)src, (inputevent_t)ev, mm);
 }
 
 // draw a simple stroke

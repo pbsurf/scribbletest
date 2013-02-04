@@ -24,9 +24,9 @@ private:
   Painter* screenPaint;
   Rect screenRect;
 
-  static const int pen = ScribbleArea::INPUTSOURCE_PEN;
-  static const int press = ScribbleArea::INPUTEVENT_PRESS;
-  static const int release = ScribbleArea::INPUTEVENT_RELEASE;
+  static const int pen = INPUTSOURCE_PEN;
+  static const int press = INPUTEVENT_PRESS;
+  static const int release = INPUTEVENT_RELEASE;
   bool testCompareFiles(const char* f1, const char* f2);
   void ie(Dim x, Dim y, Dim p, int src, int ev = 0, int mm = 0);
   void ss(Dim offset);
