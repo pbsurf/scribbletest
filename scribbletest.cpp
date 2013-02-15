@@ -28,7 +28,7 @@ ScribbleTest::ScribbleTest(const char* cfgfile)
   screenRect = Rect(0,0,600,800);
   screenImg = new QImage(QSize(screenRect.width(), screenRect.height()), QImage::Format_RGB32);
   screenPaint = new Painter(screenImg);
-  scribbleArea->viewport()->setGeometry(Painter::rectToQRect(screenRect));
+  scribbleArea->setGeometry(Painter::rectToQRect(screenRect));
 }
 
 ScribbleTest::~ScribbleTest()
