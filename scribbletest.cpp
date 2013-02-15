@@ -1,9 +1,10 @@
 #include "scribbletest.h"
 
 // Ideally, these tests should be run under valgrind to help check for memory leaks
+// renaming out files to refs (Linux):  for i in {0..10}; do mv "test${i}_out.html" "test${i}_ref.html"; done;
 
 // runAll run times (tests 0 - 10):
-// Debian-NDK VM: 440 ms (debug build)
+// Debian-NDK VM: 440 ms (debug build), 12600 ms (valgrind, 2nd run)
 // Qt-XP VM: TBD
 // X61T: TBD
 
@@ -14,6 +15,8 @@ ScribbleTest::ScribbleTest(const char* cfgfile)
   scribbleConfig->set("singleFile", true);
   // don't write out rule lines - they just clutter the output
   scribbleConfig->set("saveRuleLines", false);
+  // don't use panBorder
+  scribbleConfig->set("panFromEdge", false);
   //scribbleConfig->loadConfigFile(cfgfile);
   Painter::initPaintSystem();
   scribbleMode = new ScribbleMode(scribbleConfig);
