@@ -314,6 +314,7 @@ void ScribbleTest::test2()
 }
 
 // this test is mainly intended for finding memory leaks (so run it under valgrind)
+// also, this test will now fail if undo does not preserve z-order
 void ScribbleTest::test3()
 {
   ss(0);
