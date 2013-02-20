@@ -32,6 +32,7 @@ private:
   void ss(Dim offset);
   void s1(Dim xoffset, Dim yoffset);
   void s2(Dim xoffset, Dim yoffset);
+  void f2(Dim xoffset, Dim yoffset);
   void hr(Dim xoffset, Dim yoffset);
 
   void test0();

@@ -145,6 +145,18 @@ void ScribbleTest::s2(Dim xoffset, Dim yoffset)
   ie(0, 0, 0, pen, release);
 }
 
+// Filled stroke similar to s2
+void ScribbleTest::f2(Dim xoffset, Dim yoffset)
+{
+  ScribblePen oldpen = scribbleArea->getPen();
+  scribbleArea->setPen(ScribblePen(Painter::BLACK, 1.2, 2, false));
+  ie(10 + xoffset, -14.8 + yoffset, 0.3, pen, press);
+  ie(-9.9 + xoffset, 0.1 + yoffset, 0.7, pen);
+  ie(9.8 + xoffset, 15.1 + yoffset, 0.5, pen);
+  ie(0, 0, 0, pen, release);
+  scribbleArea->setPen(oldpen);
+}
+
 // MultiStroke (HyperRef) consisting of two strokes
 void ScribbleTest::hr(Dim xoffset, Dim yoffset)
 {
@@ -481,7 +493,7 @@ void ScribbleTest::test8()
   s2(200, 380);
   s2(150, 420);
   s2(200, 420);
-  s2(250, 420);
+  f2(250, 420);
   s2(600, 420);
   s2(200, 460);
   scribbleMode->setMode(MODE_SELECTRULED);
@@ -595,10 +607,12 @@ void ScribbleTest::test10()
   scribbleArea->gotoPos(0, Point(0,0));
   hr(150, 100);
   s2(200, 100);
+  f2(250, 100);
   scribbleArea->selectAll();
 
   scribbleArea->setPenColor(Painter::BLUE);
   scribbleArea->setPenWidth(2);
+  scribbleArea->setPenWidth(3);
   scribbleArea->undo();
 
   scribbleMode->setMode(MODE_INSSPACERULED);
