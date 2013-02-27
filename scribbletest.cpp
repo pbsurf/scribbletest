@@ -4,9 +4,10 @@
 // renaming out files to refs (Linux):  for i in {0..10}; do mv "test${i}_out.html" "test${i}_ref.html"; done;
 
 // runAll run times (tests 0 - 10):
-// Debian-NDK VM: 440 ms (debug build), 12600 ms (valgrind, 2nd run)
-// Qt-XP VM: TBD
-// X61T: TBD
+//  Debian-NDK VM (Qt 4.7 gcc): 440 ms (debug build), 12600 ms (valgrind, 2nd run)
+//  Dev-XP VM (Qt 4.8.4, MSVC 2010): 1300 ms (debug), 453 ms (release, standalone)
+//  X61T: TBD
+// standalone means not started from Qt Creator (so no qDebug output)
 
 // Just get main view working ... deal with bookmarks later
 ScribbleTest::ScribbleTest(const char* cfgfile)
@@ -599,6 +600,14 @@ void ScribbleTest::test9()
   ie(106, 180, 0, pen);
   ie(65, 200, 0, pen);
   ie(0, 0, 0, pen, release);
+
+  // return to first page and copy the bookmark - the was crashing before we fixed clone bug with idStr
+  scribbleArea->prevPage();
+  scribbleArea->selectAll();
+  scribbleArea->copyToClipboard();
+  scribbleArea->doPaste();
+  scribbleArea->deleteSelection();
+  scribbleArea->nextPage();
 }
 
 // test changing properties and ins space ruled with hyperref
