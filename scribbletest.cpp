@@ -1,4 +1,5 @@
 #include "scribbletest.h"
+#include <QtGui>
 
 // Ideally, these tests should be run under valgrind to help check for memory leaks
 // renaming out files to refs (Linux):  for i in {0..10}; do mv "test${i}_out.html" "test${i}_ref.html"; done;
@@ -35,14 +36,26 @@ ScribbleTest::ScribbleTest(const char* cfgfile)
   scribbleArea->setGeometry(Painter::rectToQRect(screenRect));
 }
 
+ScribbleTest::ScribbleTest(ScribbleArea* sa, BookmarkView* bv, ScribbleMode* sm)
+{
+  scribbleArea = sa;
+  bookmarkArea = bv;
+  scribbleMode = sm;
+  scribbleConfig = NULL;
+  screenImg = NULL;
+  screenPaint = NULL;
+}
+
 ScribbleTest::~ScribbleTest()
 {
-  delete screenPaint;
-  delete screenImg;
-  delete bookmarkArea;
-  delete scribbleArea;
-  delete scribbleMode;
-  delete scribbleConfig;
+  if(scribbleConfig) {
+    delete screenPaint;
+    delete screenImg;
+    delete bookmarkArea;
+    delete scribbleArea;
+    delete scribbleMode;
+    delete scribbleConfig;
+  }
   bookmarkArea = NULL;
   scribbleArea = NULL;
   scribbleMode = NULL;
@@ -69,7 +82,7 @@ bool ScribbleTest::testCompareFiles(const char* f1, const char* f2)
 
 void ScribbleTest::runAll(const char* path)
 {
-  nFailed = 0;
+  int nFailed = 0;
   char buff[256];
   char reffile[256];
   void (ScribbleTest::*tests[])() = {
@@ -86,7 +99,7 @@ void ScribbleTest::runAll(const char* path)
     &ScribbleTest::test10
   };
 
-  runAllTime = mSecSinceEpoch();
+  Timestamp runAllTime = mSecSinceEpoch();
   for(unsigned int ii = 0; ii < sizeof(tests)/sizeof(tests[0]); ii++) {
     scribbleArea->newDocument();
     // attempt to open input file; fails quietly if not present
@@ -99,7 +112,7 @@ void ScribbleTest::runAll(const char* path)
     // wow...
     (this->*tests[ii])();
 
-    scribbleArea->doPaintEvent(screenPaint);  //, screenRect);
+    scribbleArea->doPaintEvent(screenPaint); //, screenRect);
     sprintf(buff, "%s/test/test%d_out.png", path, ii);
     screenImg->save(buff, "png");
     // write output file
@@ -113,6 +126,74 @@ void ScribbleTest::runAll(const char* path)
       nFailed++;
   }
   runAllTime = mSecSinceEpoch() - runAllTime;
+  resultStr.format("Tests completed in %d ms with %d failed tests.", int(runAllTime), nFailed);
+}
+
+void ScribbleTest::performanceTest()
+{
+  scribbleArea->gotoPos(0, Point(0,0));
+  scribbleMode->setMode(MODE_STROKE);
+  scribbleArea->setPen(ScribblePen(Painter::BLACK, 1, 2));
+  scribbleArea->frameCount = 0;
+  Timestamp t0 = mSecSinceEpoch();
+  // draw many strokes
+  for(Dim y = 20; y < 800; y += 20) {
+    for(Dim x = 20; x < 800; x += 20) {
+      QApplication::processEvents();
+      s3(x, y);
+      scribbleArea->doRefresh();
+    }
+  }
+  Timestamp t1 = mSecSinceEpoch();
+  int drawTime = t1 - t0;
+  t0 = t1;
+  int drawFrames = scribbleArea->frameCount;
+  scribbleArea->frameCount = 0;
+  // select them all
+  scribbleArea->doCommand(ID_SELALL);
+  // move them around
+  for(int ii = 0; ii < 100; ii++) {
+    QApplication::processEvents();
+    s3(400, 400);
+    scribbleArea->doRefresh();
+  }
+  t1 = mSecSinceEpoch();
+  int moveTime = t1 - t0;
+  t0 = t1;
+  int moveFrames = scribbleArea->frameCount;
+  scribbleArea->frameCount = 0;
+  // scroll up and down a bunch
+  scribbleMode->setMode(MODE_PAN);
+  ie(400, 800, 0, pen, press);
+  for(int ii = 0; ii < 2000; ii++) {
+    // cleverly generate a triangle wave
+    QApplication::processEvents();
+    ie(400, 16*ABS((ii % 100) - 50), 0, pen);
+    scribbleArea->doRefresh();
+  }
+  QApplication::processEvents();
+  ie(0, 0, 1, pen, release);
+  scribbleArea->doRefresh();
+  QApplication::processEvents();
+  t1 = mSecSinceEpoch();
+  int panTime = t1 - t0;
+  t0 = t1;
+  int panFrames = scribbleArea->frameCount;
+  resultStr.format(
+      "Draw: %d frames in %d ms (%f FPS)\nMove: %d frames in %d ms (%f FPS)\nPan: %d frames in %d ms (%f FPS)",
+      drawFrames, drawTime, (drawFrames*1000.0)/drawTime, moveFrames, moveTime, (moveFrames*1000.0)/moveTime,
+      panFrames, panTime, (panFrames*1000.0)/panTime);
+}
+
+// long stroke
+void ScribbleTest::s3(Dim xoffset, Dim yoffset)
+{
+  static const Dim xang[] = {1, 0, -1, 0};
+  static const Dim yang[] = {0, -1, 0, 1};
+  ie(xoffset, yoffset, 1, pen, press);
+  for(int ii = 1; ii <= 100; ii++)
+    ie(xoffset + ii*xang[ii % 4]/10.0, yoffset + ii*yang[ii % 4]/10.0, 1, pen);
+  ie(0, 0, 1, pen, release);
 }
 
 void ScribbleTest::ie(Dim x, Dim y, Dim p, int src, int ev, int mm)

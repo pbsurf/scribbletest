@@ -7,13 +7,14 @@
 class ScribbleTest {
 public:
   ScribbleTest(const char* cfgfile = NULL);
+  ScribbleTest(ScribbleArea* sa, BookmarkView* bv, ScribbleMode* sm);
   ~ScribbleTest();
 
   void runAll(const char* path);
+  void performanceTest();
 
-  // results to be read by called;
-  int nFailed;
-  Timestamp runAllTime;
+  // result string to be read by caller
+  fstring resultStr;
 
 private:
   ScribbleConfig* scribbleConfig;
@@ -32,6 +33,7 @@ private:
   void ss(Dim offset);
   void s1(Dim xoffset, Dim yoffset);
   void s2(Dim xoffset, Dim yoffset);
+  void s3(Dim xoffset, Dim yoffset);
   void f2(Dim xoffset, Dim yoffset);
   void hr(Dim xoffset, Dim yoffset);
 
