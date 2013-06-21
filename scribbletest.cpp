@@ -29,11 +29,14 @@ ScribbleTest::ScribbleTest(const char* cfgfile)
   bookmarkArea = new BookmarkView(NULL, scribbleConfig, scribbleArea);
   // setup ScribbleArea
   scribbleArea->newDocument();
+  // don't add extra points to test strokes
+  StrokeBuilder::MAX_POINT_DIST = 1000;
 
   screenRect = Rect(0,0,600,800);
   screenImg = new QImage(QSize(screenRect.width(), screenRect.height()), QImage::Format_RGB32);
   screenPaint = new Painter(screenImg);
-  scribbleArea->setGeometry(Painter::rectToQRect(screenRect));
+  scribbleArea->screenRect = screenRect;
+  //scribbleArea->setGeometry(Painter::rectToQRect(screenRect));
 }
 
 ScribbleTest::ScribbleTest(ScribbleArea* sa, BookmarkView* bv, ScribbleMode* sm)
@@ -96,7 +99,9 @@ void ScribbleTest::runAll(const char* path)
     &ScribbleTest::test7,
     &ScribbleTest::test8,
     &ScribbleTest::test9,
-    &ScribbleTest::test10
+    &ScribbleTest::test10,
+    &ScribbleTest::test11,
+    &ScribbleTest::test12
   };
 
   Timestamp runAllTime = mSecSinceEpoch();
@@ -109,6 +114,7 @@ void ScribbleTest::runAll(const char* path)
     // reset mode
     scribbleMode->setRuled(true);
     scribbleMode->setMode(MODE_STROKE);
+    scribbleArea->setPen(ScribblePen(Painter::BLACK, 1, 0));
     // wow...
     (this->*tests[ii])();
 
@@ -257,8 +263,9 @@ void ScribbleTest::hr(Dim xoffset, Dim yoffset)
   ie(xoffset, yoffset, 0, pen);
   ie(22 + xoffset, 17 + yoffset, 0, pen);
   ie(0, 0, 0, pen, release);
-  // this will clear the selection
   scribbleArea->createHyperRef("http://www.styluslabs.com");
+  // have to clear the selection ourselves now
+  scribbleArea->clearSelection();
 }
 
 void ScribbleTest::test0()
@@ -709,5 +716,89 @@ void ScribbleTest::test10()
   ie(104, 100, 0, pen, press);
   ie(195, 98, 0, pen);
   ie(298, 103, 0, pen);
+  ie(0, 0, 0, pen, release);
+}
+
+// test column detection and free erase
+void ScribbleTest::test11()
+{
+  scribbleArea->gotoPos(0, Point(0,0));
+  PageProperties props(1200, 800, 0, 40, 100);
+  scribbleArea->setPageProperties(&props, false, true, false);
+  // create 2 columns with 4 lines of "text" each
+  for(int col = 0; col < 1000; col += 550) {
+    for(int offset = 125; offset < 600; offset += 125) {
+      s2(col + offset, 61);
+      s2(col + offset + 25, 67);
+      s2(col + offset + 50, 62);
+      s2(col + offset + 75, 60);
+    }
+    for(int offset = 130; offset < 600; offset += 119) {
+      s2(col + offset, 102);
+      s2(col + offset + 25, 99);
+      s2(col + offset + 50, 97);
+      s2(col + offset + 75, 101);
+    }
+    for(int offset = 125; offset < 600; offset += 121) {
+      s2(col + offset, 138);
+      s2(col + offset + 25, 137);
+      s2(col + offset + 50, 143);
+      s2(col + offset + 75, 140);
+    }
+    for(int offset = 120; offset < 600; offset += 120) {
+      s2(col + offset, 180);
+      s2(col + offset + 26, 181);
+      s2(col + offset + 53, 177);
+      s2(col + offset + 76, 179);
+    }
+  }
+  // need dense points
+  StrokeBuilder::MAX_POINT_DIST = 2;
+  // draw column divider - points need to be dense and we've disabled MAX_POINT_DIST
+  ie(640, 20, 0, pen, press);
+  ie(605, 220, 0, pen);
+  ie(0, 0, 0, pen, release);
+
+  // insert space
+  scribbleMode->setMode(MODE_INSSPACERULED);
+  ie(225, 62, 0, pen, press);
+  ie(350, 64, 0, pen);
+  ie(505, 63, 0, pen);
+  ie(0, 0, 0, pen, release);
+
+  // apply free eraser to stroke, filled stroke, hyperref
+  // ... also want a stroke which will be broken into > 2 pieces
+  ie(140, 420, 0, pen, press);
+  ie(145, 340, 0, pen);
+  ie(150, 420, 0, pen);
+  ie(155, 340, 0, pen);
+  ie(160, 420, 0, pen);
+  ie(0, 0, 0, pen, release);
+  s2(200, 379);
+  f2(250, 382);
+  hr(300, 381);
+  scribbleMode->setMode(MODE_ERASEFREE);
+  ie(100, 380, 0, pen, press);
+  ie(140, 380, 0, pen);
+  ie(200, 380, 0, pen);
+  ie(290, 380, 0, pen);
+  ie(400, 380, 0, pen);
+  ie(0, 0, 0, pen, release);
+  StrokeBuilder::MAX_POINT_DIST = 1000;
+}
+
+// test scaling ... test12_in.html includes an image
+void ScribbleTest::test12()
+{
+  // easier to figure out what's going on if screen space and Dim space are the same
+  scribbleArea->gotoPos(0, Point(0,0));
+  s2(200, 179);
+  f2(250, 182);
+  hr(300, 181);
+  scribbleArea->doCommand(ID_SELALL);
+  // resize selection
+  ie(320, 198, 0, pen, press);
+  ie(350, 250, 0, pen);
+  ie(450, 300, 0, pen);
   ie(0, 0, 0, pen, release);
 }
