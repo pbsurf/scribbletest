@@ -36,6 +36,7 @@ ScribbleTest::ScribbleTest(const char* cfgfile)
   screenImg = new QImage(QSize(screenRect.width(), screenRect.height()), QImage::Format_RGB32);
   screenPaint = new Painter(screenImg);
   scribbleArea->screenRect = screenRect;
+  scribbleArea->doPaintEvent(screenPaint);  // ensure that ScribbleView::imgPaint is inited
   //scribbleArea->setGeometry(Painter::rectToQRect(screenRect));
 }
 
@@ -792,6 +793,15 @@ void ScribbleTest::test12()
 {
   // easier to figure out what's going on if screen space and Dim space are the same
   scribbleArea->gotoPos(0, Point(0,0));
+  // test added because of crash
+  scribbleMode->setMode(MODE_BOOKMARK);
+  ie(135, 110, 0, pen, press);
+  ie(106, 100, 0, pen);
+  ie(60, 60, 0, pen);
+  ie(0, 0, 0, pen, release);
+  scribbleArea->getDocument()->drawBookmarks(screenPaint, NULL);
+  scribbleArea->doCommand(ID_UNDO);
+  // back to our regularly scheduled programming...
   s2(200, 179);
   f2(250, 182);
   hr(300, 181);
