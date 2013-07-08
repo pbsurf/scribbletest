@@ -811,4 +811,12 @@ void ScribbleTest::test12()
   ie(350, 250, 0, pen);
   ie(450, 300, 0, pen);
   ie(0, 0, 0, pen, release);
+  // clear selection
+  s2(550, 550);
+  // apply free eraser to image
+  scribbleMode->setMode(MODE_ERASEFREE);
+  ie(100, 40, 0, pen, press);
+  ie(150, 90, 0, pen);
+  ie(200, 140, 0, pen);
+  ie(0, 0, 0, pen, release);
 }
