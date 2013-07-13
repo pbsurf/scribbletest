@@ -123,6 +123,7 @@ void ScribbleTest::runAll(const char* path)
     sprintf(buff, "%s/test/test%d_out.png", path, ii);
     screenImg->save(buff, "png");
     // write output file
+    Element::SVG_NO_TIMESTAMP = true;
     sprintf(buff, "%s/test/test%d_out.html", path, ii);
     scribbleArea->saveDocument(buff);
     // compare output to reference; tests of one-file-per-page must handle the svg files themselves
