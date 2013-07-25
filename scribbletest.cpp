@@ -160,7 +160,7 @@ void ScribbleTest::performanceTest()
   // select them all
   scribbleArea->doCommand(ID_SELALL);
   // move them around
-  for(int ii = 0; ii < 100; ii++) {
+  for(int ii = 0; ii < 10; ii++) {
     QApplication::processEvents();
     s3(400, 400);
     scribbleArea->doRefresh();
@@ -703,6 +703,14 @@ void ScribbleTest::test9()
 // test changing properties and ins space ruled with hyperref
 void ScribbleTest::test10()
 {
+  // test creating new doc with different view modes (added because of crash)
+  scribbleConfig->set("viewMode", 0);
+  scribbleArea->newDocument();
+  scribbleConfig->set("viewMode", 2);
+  scribbleArea->newDocument();
+  scribbleConfig->set("viewMode", 1);
+  scribbleArea->newDocument();
+
   scribbleArea->gotoPos(0, Point(0,0));
   hr(150, 100);
   s2(200, 100);
