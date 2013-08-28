@@ -102,9 +102,11 @@ void ScribbleTest::runAll(const char* path)
     &ScribbleTest::test9,
     &ScribbleTest::test10,
     &ScribbleTest::test11,
-    &ScribbleTest::test12
+    &ScribbleTest::test12,
+    &ScribbleTest::test13
   };
 
+  outPath = path;  // test13 needs path because it saves and reopens file multiple times
   Timestamp runAllTime = mSecSinceEpoch();
   for(unsigned int ii = 0; ii < sizeof(tests)/sizeof(tests[0]); ii++) {
     scribbleArea->newDocument();
@@ -677,6 +679,15 @@ void ScribbleTest::test9()
   // Must draw bookmarks so that findBookmark will work
   scribbleArea->getDocument()->drawBookmarks(screenPaint, NULL);
 
+  // drop a bookmark off page, then undo - added because this used to cause crash on undo
+  scribbleMode->setMode(MODE_BOOKMARK);
+  ie(50, 50, 0, pen, press);
+  ie(20, 20, 0, pen);
+  ie(-100, -100, 0, pen);
+  ie(0, 0, 0, pen, release);
+  scribbleArea->doCommand(ID_UNDO);
+  scribbleArea->doCommand(ID_REDO);
+
   scribbleArea->nextPage(true);
   // create hyperref, then convert (along with another stroke) to point to bookmark on first page
   hr(150, 100);
@@ -828,4 +839,61 @@ void ScribbleTest::test12()
   ie(150, 90, 0, pen);
   ie(200, 140, 0, pen);
   ie(0, 0, 0, pen, release);
+}
+
+// test13 - test multiple file documents, since these have been the source of the two data loss bugs found so
+//  far in Write
+void ScribbleTest::test13()
+{
+  // setup output path
+  char filename[256];
+  sprintf(filename, "%s/test/test13_out.html", outPath);
+  scribbleArea->cfg->set("singleFile", false);
+
+  // create page 1
+  scribbleArea->gotoPos(0, Point(0,0));
+  s2(100, 100);
+  // create page 2
+  scribbleArea->nextPage(true);
+  s2(200, 200);
+  // create page 3
+  scribbleArea->nextPage(true);
+  s2(300, 300);
+  // return to page 1
+  scribbleArea->gotoPos(0, Point(0,0));
+  // save
+  scribbleArea->saveDocument(filename);
+  // reopen; only page 1 should be loaded
+  scribbleArea->openDocument(filename);
+
+  // change page properties - apply to all
+  PageProperties props(0, 0, 30, 30, 30, 0xFFFFFF00, 0x7F0000FF);
+  scribbleArea->setPageProperties(&props, true, false, false);
+  // save and reopen
+  scribbleArea->saveDocument(filename);
+  scribbleArea->openDocument(filename);
+
+  // insert a new page after page 1
+  scribbleArea->doCommand(ID_PAGEAFTER);
+  s2(150, 150);
+  // save and reopen
+  scribbleArea->saveDocument(filename);
+  scribbleArea->openDocument(filename);
+
+  // remove page 3 (formerly page 2)
+  scribbleArea->nextPage();
+  scribbleArea->doCommand(ID_DELPAGE);
+  // save and reopen
+  scribbleArea->saveDocument(filename);
+  scribbleArea->openDocument(filename);
+  // load all pages before deleting SVG files
+  scribbleArea->getDocument()->ensurePagesLoaded();
+
+  // return to single file config for comparision of file result
+  scribbleArea->cfg->set("singleFile", true);
+  // remove SVG files
+  int ii = 1;
+  do {
+    sprintf(filename, "%s/test/test13_out_page%03d.svg", outPath, ii++);
+  } while(remove(filename) == 0);
 }

@@ -24,6 +24,7 @@ private:
   QImage* screenImg;
   Painter* screenPaint;
   Rect screenRect;
+  const char* outPath;
 
   static const int pen = INPUTSOURCE_PEN;
   static const int press = INPUTEVENT_PRESS;
@@ -50,6 +51,7 @@ private:
   void test10();
   void test11();
   void test12();
+  void test13();
 };
 
 #endif
