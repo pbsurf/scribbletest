@@ -103,7 +103,8 @@ void ScribbleTest::runAll(const char* path)
     &ScribbleTest::test10,
     &ScribbleTest::test11,
     &ScribbleTest::test12,
-    &ScribbleTest::test13
+    &ScribbleTest::test13,
+    &ScribbleTest::test14
   };
 
   outPath = path;  // test13 needs path because it saves and reopens file multiple times
@@ -896,4 +897,27 @@ void ScribbleTest::test13()
   do {
     sprintf(filename, "%s/test/test13_out_page%03d.svg", outPath, ii++);
   } while(remove(filename) == 0);
+}
+
+// input test; have to use touch since Windows only provides InjectTouchInput (not pen input)
+void ScribbleTest::test14()
+{
+  scribbleArea->scribbleInput->singleTouchMode = INPUTMODE_DRAW;
+  bool win8ok = false;
+#ifdef Q_OS_WIN
+  if(QSysInfo::windowsVersion() > QSysInfo::WV_WINDOWS7) {
+    ScribbleInput::injectTouch(150, 150, 0.25, press)
+    ScribbleInput::injectTouch(160, 155, 0.75);
+    ScribbleInput::injectTouch(140, 145, 0.5);
+    ScribbleInput::injectTouch(140, 145, 0, release);
+    win8ok = true;
+  }
+#endif
+  if(!win8ok) {
+    ie(150, 150, 0.25, INPUTSOURCE_TOUCH, press);
+    ie(160, 155, 0.75, INPUTSOURCE_TOUCH);
+    ie(140, 145, 0.5, INPUTSOURCE_TOUCH);
+    ie(140, 145, 0, INPUTSOURCE_TOUCH, release);
+  }
+  scribbleArea->scribbleInput->singleTouchMode = INPUTMODE_NONE;
 }
