@@ -12,6 +12,7 @@ public:
 
   void runAll(const char* path);
   void performanceTest();
+  void inputTest();
 
   // result string to be read by caller
   fstring resultStr;
@@ -52,7 +53,6 @@ private:
   void test11();
   void test12();
   void test13();
-  void test14();
 };
 
 #endif

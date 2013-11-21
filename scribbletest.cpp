@@ -103,8 +103,7 @@ void ScribbleTest::runAll(const char* path)
     &ScribbleTest::test10,
     &ScribbleTest::test11,
     &ScribbleTest::test12,
-    &ScribbleTest::test13,
-    &ScribbleTest::test14
+    &ScribbleTest::test13
   };
 
   outPath = path;  // test13 needs path because it saves and reopens file multiple times
@@ -194,6 +193,41 @@ void ScribbleTest::performanceTest()
       "Draw: %d frames in %d ms (%f FPS)\nMove: %d frames in %d ms (%f FPS)\nPan: %d frames in %d ms (%f FPS)",
       drawFrames, drawTime, (drawFrames*1000.0)/drawTime, moveFrames, moveTime, (moveFrames*1000.0)/moveTime,
       panFrames, panTime, (panFrames*1000.0)/panTime);
+}
+
+// input test; have to use touch since Windows only provides InjectTouchInput (not pen input)
+void ScribbleTest::inputTest()
+{
+  scribbleArea->scribbleInput->singleTouchMode = INPUTMODE_DRAW;
+  bool win8ok = false;
+  bool injok = true;
+#ifdef Q_OS_WIN
+  if(QSysInfo::windowsVersion() > QSysInfo::WV_WINDOWS7) {
+    injok = ScribbleInput::injectTouch(150, 150, 0.25, press) && injok;
+    injok = ScribbleInput::injectTouch(200, 200, 0.75) && injok;
+    injok = ScribbleInput::injectTouch(250, 150, 0.5) && injok;
+    injok = ScribbleInput::injectTouch(250, 150, 0, release) && injok;
+    win8ok = true;
+  }
+#endif
+  if(!win8ok) {
+    ie(150, 150, 0.25, INPUTSOURCE_TOUCH, press);
+    ie(200, 200, 0.75, INPUTSOURCE_TOUCH);
+    ie(250, 150, 0.5, INPUTSOURCE_TOUCH);
+    ie(250, 150, 0, INPUTSOURCE_TOUCH, release);
+  }
+  ie(150, 150, 0.25, INPUTSOURCE_TOUCH, press);
+  ie(200, 100, 0.75, INPUTSOURCE_TOUCH);
+  ie(250, 150, 0.5, INPUTSOURCE_TOUCH);
+  ie(250, 150, 0, INPUTSOURCE_TOUCH, release);
+  scribbleArea->scribbleInput->singleTouchMode = INPUTMODE_NONE;
+  // this attempted stroke should NOT appear
+  ie(150, 200, 0.25, INPUTSOURCE_TOUCH, press);
+  ie(200, 150, 0.75, INPUTSOURCE_TOUCH);
+  ie(250, 200, 0.5, INPUTSOURCE_TOUCH);
+  ie(250, 200, 0, INPUTSOURCE_TOUCH, release);
+
+  resultStr.format("A diamond should have been drawn. Windows 8 touch injection OK: %s", (win8ok && injok) ? "true" : "false");
 }
 
 // long stroke
@@ -897,27 +931,4 @@ void ScribbleTest::test13()
   do {
     sprintf(filename, "%s/test/test13_out_page%03d.svg", outPath, ii++);
   } while(remove(filename) == 0);
-}
-
-// input test; have to use touch since Windows only provides InjectTouchInput (not pen input)
-void ScribbleTest::test14()
-{
-  scribbleArea->scribbleInput->singleTouchMode = INPUTMODE_DRAW;
-  bool win8ok = false;
-#ifdef Q_OS_WIN
-  if(QSysInfo::windowsVersion() > QSysInfo::WV_WINDOWS7) {
-    ScribbleInput::injectTouch(150, 150, 0.25, press)
-    ScribbleInput::injectTouch(160, 155, 0.75);
-    ScribbleInput::injectTouch(140, 145, 0.5);
-    ScribbleInput::injectTouch(140, 145, 0, release);
-    win8ok = true;
-  }
-#endif
-  if(!win8ok) {
-    ie(150, 150, 0.25, INPUTSOURCE_TOUCH, press);
-    ie(160, 155, 0.75, INPUTSOURCE_TOUCH);
-    ie(140, 145, 0.5, INPUTSOURCE_TOUCH);
-    ie(140, 145, 0, INPUTSOURCE_TOUCH, release);
-  }
-  scribbleArea->scribbleInput->singleTouchMode = INPUTMODE_NONE;
 }
