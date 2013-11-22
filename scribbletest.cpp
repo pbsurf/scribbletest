@@ -203,10 +203,13 @@ void ScribbleTest::inputTest()
   bool injok = true;
 #ifdef Q_OS_WIN
   if(QSysInfo::windowsVersion() > QSysInfo::WV_WINDOWS7) {
-    injok = ScribbleInput::injectTouch(150, 150, 0.25, press) && injok;
-    injok = ScribbleInput::injectTouch(200, 200, 0.75) && injok;
-    injok = ScribbleInput::injectTouch(250, 150, 0.5) && injok;
-    injok = ScribbleInput::injectTouch(250, 150, 0, release) && injok;
+    QPoint origin = scribbleArea->mapToGlobal(QPoint(0, 0));
+    int x = origin.x();
+    int y = origin.y();
+    injok = ScribbleInput::injectTouch(x + 150, y + 150, 0.25, press) && injok;
+    injok = ScribbleInput::injectTouch(x + 200, y + 200, 0.75) && injok;
+    injok = ScribbleInput::injectTouch(x + 250, y + 150, 0.5) && injok;
+    injok = ScribbleInput::injectTouch(x + 250, y + 150, 0, release) && injok;
     win8ok = true;
   }
 #endif
