@@ -61,8 +61,6 @@ class DebugEventFilter : public QObject
   Q_OBJECT
 public:
   //DebugEventFilter(QObject* parent) : QObject(parent) {}
-  static const char* getEventName(const QEvent* event);
-
 protected:
   bool eventFilter(QObject* obj, QEvent* event);
 };
