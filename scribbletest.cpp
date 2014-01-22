@@ -1,4 +1,5 @@
 #include "scribbletest.h"
+#include "strokebuilder.h"
 #include <QtGui>
 
 // Ideally, these tests should be run under valgrind to help check for memory leaks
@@ -19,6 +20,8 @@ ScribbleTest::ScribbleTest(const char* cfgfile)
   scribbleConfig->set("saveRuleLines", false);
   // don't use panBorder
   scribbleConfig->set("panFromEdge", false);
+  // disable input smoothing
+  scribbleConfig->set("inputSmoothing", 0);
   //scribbleConfig->loadConfigFile(cfgfile);
   Painter::initPaintSystem();
   scribbleMode = new ScribbleMode(scribbleConfig);
@@ -30,7 +33,7 @@ ScribbleTest::ScribbleTest(const char* cfgfile)
   // setup ScribbleArea
   scribbleArea->newDocument();
   // don't add extra points to test strokes
-  StrokeBuilder::MAX_POINT_DIST = 1000;
+  PointDensityFilter::MAX_POINT_DIST = 1000;
 
   screenRect = Rect(0,0,600,800);
   screenImg = new QImage(QSize(screenRect.width(), screenRect.height()), QImage::Format_RGB32);
@@ -812,7 +815,7 @@ void ScribbleTest::test11()
     }
   }
   // need dense points
-  StrokeBuilder::MAX_POINT_DIST = 2;
+  PointDensityFilter::MAX_POINT_DIST = 2;
   // draw column divider - points need to be dense and we've disabled MAX_POINT_DIST
   ie(640, 20, 0, pen, press);
   ie(605, 220, 0, pen);
@@ -843,7 +846,7 @@ void ScribbleTest::test11()
   ie(290, 380, 0, pen);
   ie(400, 380, 0, pen);
   ie(0, 0, 0, pen, release);
-  StrokeBuilder::MAX_POINT_DIST = 1000;
+  PointDensityFilter::MAX_POINT_DIST = 1000;
 }
 
 // test scaling ... test12_in.html includes an image
