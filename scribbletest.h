@@ -55,4 +55,14 @@ private:
   void test13();
 };
 
+// debug event filter - prints name of every event received
+class DebugEventFilter : public QObject
+{
+  Q_OBJECT
+public:
+  //DebugEventFilter(QObject* parent) : QObject(parent) {}
+protected:
+  bool eventFilter(QObject* obj, QEvent* event);
+};
+
 #endif

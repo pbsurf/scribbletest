@@ -1,6 +1,8 @@
 #include "scribbletest.h"
 #include "strokebuilder.h"
 #include <QtGui>
+#include <QApplication>
+#include <QDebug>
 
 // Ideally, these tests should be run under valgrind to help check for memory leaks
 // renaming out files to refs (Linux):  for i in {0..10}; do mv "test${i}_out.html" "test${i}_ref.html"; done;
@@ -937,4 +939,17 @@ void ScribbleTest::test13()
   do {
     sprintf(filename, "%s/test/test13_out_page%03d.svg", outPath, ii++);
   } while(remove(filename) == 0);
+}
+
+
+bool DebugEventFilter::eventFilter(QObject* obj, QEvent* event)
+{
+  //if(event->type() != QEvent::Timer)
+  //  qDebug("DebugEventFilter: %s", getEventName(event));
+  qDebug() << obj->metaObject()->className() << " - " << obj->objectName() << " - " << event;
+  if(event->type() == QEvent::MouseMove && ((QMouseEvent*)event)->buttons() == Qt::NoButton)
+    qDebug("jackpot!");
+  else if(obj->metaObject()->className() == QString("QRubberBand"))
+    qDebug("rubber band!");
+  return QObject::eventFilter(obj, event);
 }
