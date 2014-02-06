@@ -24,16 +24,19 @@ ScribbleTest::ScribbleTest(const char* cfgfile)
   scribbleConfig->set("panFromEdge", false);
   // disable input smoothing
   scribbleConfig->set("inputSmoothing", 0);
-  //scribbleConfig->loadConfigFile(cfgfile);
+  scribbleConfig->set("saveThumbnail", 0);
+  // disable DPI detection
+  scribbleConfig->set("screenDPI", int(ScribbleView::DEFAULT_DPI));
   Painter::initPaintSystem();
   scribbleMode = new ScribbleMode(scribbleConfig);
   // NOTE: if you remove or change this, you must find another way to init erase, select, ins space modes!
   scribbleMode->setRuled(true);
   scribbleMode->setMode(MODE_STROKE);
-  scribbleArea = new ScribbleArea(NULL, scribbleConfig, scribbleMode);
-  bookmarkArea = new BookmarkView(NULL, scribbleConfig, scribbleArea);
+  scribbleDoc = new ScribbleDoc(NULL, scribbleConfig, scribbleMode);
+  scribbleArea = scribbleDoc->addArea();
+  bookmarkArea = new BookmarkView(scribbleConfig, scribbleDoc);
   // setup ScribbleArea
-  scribbleArea->newDocument();
+  scribbleDoc->newDocument();
   // don't add extra points to test strokes
   PointDensityFilter::MAX_POINT_DIST = 1000;
 
@@ -45,11 +48,12 @@ ScribbleTest::ScribbleTest(const char* cfgfile)
   //scribbleArea->setGeometry(Painter::rectToQRect(screenRect));
 }
 
-ScribbleTest::ScribbleTest(ScribbleArea* sa, BookmarkView* bv, ScribbleMode* sm)
+ScribbleTest::ScribbleTest(ScribbleDoc* sd, BookmarkView* bv, ScribbleMode* sm)
 {
-  scribbleArea = sa;
+  scribbleDoc = sd;
+  scribbleArea = sd->activeArea;
+  scribbleMode = sd->scribbleMode;
   bookmarkArea = bv;
-  scribbleMode = sm;
   scribbleConfig = NULL;
   screenImg = NULL;
   screenPaint = NULL;
@@ -61,7 +65,7 @@ ScribbleTest::~ScribbleTest()
     delete screenPaint;
     delete screenImg;
     delete bookmarkArea;
-    delete scribbleArea;
+    delete scribbleDoc;
     delete scribbleMode;
     delete scribbleConfig;
   }
@@ -114,15 +118,15 @@ void ScribbleTest::runAll(const char* path)
   outPath = path;  // test13 needs path because it saves and reopens file multiple times
   Timestamp runAllTime = mSecSinceEpoch();
   for(unsigned int ii = 0; ii < sizeof(tests)/sizeof(tests[0]); ii++) {
-    scribbleArea->newDocument();
+    scribbleDoc->newDocument();
     // attempt to open input file; fails quietly if not present
     // OH NOES!!! buffer overrun danger here!
     sprintf(buff, "%s/test/test%d_in.html", path, ii);
-    scribbleArea->openDocument(buff);
+    scribbleDoc->openDocument(buff);
     // reset mode
     scribbleMode->setRuled(true);
     scribbleMode->setMode(MODE_STROKE);
-    scribbleArea->setPen(ScribblePen(Painter::BLACK, 1, 0));
+    scribbleDoc->setPen(ScribblePen(Painter::BLACK, 1, 0));
     // wow...
     (this->*tests[ii])();
 
@@ -132,7 +136,7 @@ void ScribbleTest::runAll(const char* path)
     // write output file
     Element::SVG_NO_TIMESTAMP = true;
     sprintf(buff, "%s/test/test%d_out.html", path, ii);
-    scribbleArea->saveDocument(buff);
+    scribbleDoc->saveDocument(buff);
     // compare output to reference; tests of one-file-per-page must handle the svg files themselves
     sprintf(reffile, "%s/test/test%d_ref.html", path, ii);
     if(testCompareFiles(buff, reffile))
@@ -148,7 +152,7 @@ void ScribbleTest::performanceTest()
 {
   scribbleArea->gotoPos(0, Point(0,0));
   scribbleMode->setMode(MODE_STROKE);
-  scribbleArea->setPen(ScribblePen(Painter::BLACK, 1, 2));
+  scribbleDoc->setPen(ScribblePen(Painter::BLACK, 1, 2));
   scribbleArea->frameCount = 0;
   Timestamp t0 = mSecSinceEpoch();
   // draw many strokes
@@ -165,7 +169,7 @@ void ScribbleTest::performanceTest()
   int drawFrames = scribbleArea->frameCount;
   scribbleArea->frameCount = 0;
   // select them all
-  scribbleArea->doCommand(ID_SELALL);
+  doCommand(ID_SELALL);
   // move them around
   for(int ii = 0; ii < 10; ii++) {
     QApplication::processEvents();
@@ -283,13 +287,13 @@ void ScribbleTest::s2(Dim xoffset, Dim yoffset)
 // Filled stroke similar to s2
 void ScribbleTest::f2(Dim xoffset, Dim yoffset)
 {
-  ScribblePen oldpen = scribbleArea->getPen();
-  scribbleArea->setPen(ScribblePen(Painter::BLACK, 1.2, 2, false));
+  ScribblePen oldpen = scribbleDoc->getPen();
+  scribbleDoc->setPen(ScribblePen(Painter::BLACK, 1.2, 2, false));
   ie(10 + xoffset, -14.8 + yoffset, 0.3, pen, press);
   ie(-9.9 + xoffset, 0.1 + yoffset, 0.7, pen);
   ie(9.8 + xoffset, 15.1 + yoffset, 0.5, pen);
   ie(0, 0, 0, pen, release);
-  scribbleArea->setPen(oldpen);
+  scribbleDoc->setPen(oldpen);
 }
 
 // MultiStroke (HyperRef) consisting of two strokes
@@ -352,7 +356,7 @@ void ScribbleTest::test2()
   ie(114.5, 172.2, 0, 1, 0, 0);
   ie(121.8, 177.3, 0, 1, 0, 0);
   ie(0, 0, 0, 1, -1, 0);
-  scribbleArea->undo();
+  undo();
   ie(213.000, 51.000, 0.000, 1, 1, 0);
   ie(211.000, 51.000, 0.000, 1, 0, 0);
   ie(210.000, 51.000, 0.000, 1, 0, 0);
@@ -468,35 +472,35 @@ void ScribbleTest::test3()
   ss(0);
   hr(300, 300);
   ss(5);
-  scribbleArea->selectAll();
-  scribbleArea->deleteSelection();
-  scribbleArea->undo();
-  scribbleArea->undo();
+  doCommand(ID_SELALL);
+  doCommand(ID_DELSEL);
+  undo();
+  undo();
   ss(10);
   ss(15);
-  scribbleArea->undo();
+  undo();
   ss(20);
-  scribbleArea->selectAll();
-  scribbleArea->copyToClipboard();
-  scribbleArea->deleteSelection();
+  doCommand(ID_SELALL);
+  doCommand(ID_COPYSEL);
+  doCommand(ID_DELSEL);
   ss(30);
   ss(40);
-  scribbleArea->selectAll();
-  scribbleArea->copyToClipboard();
-  scribbleArea->doPaste();
+  doCommand(ID_SELALL);
+  doCommand(ID_COPYSEL);
+  doCommand(ID_PASTE);
   ss(50);
-  scribbleArea->undo();
-  scribbleArea->undo();
-  scribbleArea->doPaste();
-  scribbleArea->deleteSelection();
+  undo();
+  undo();
+  doCommand(ID_PASTE);
+  doCommand(ID_DELSEL);
   ss(60);
-  scribbleArea->undo();
-  scribbleArea->undo();
+  undo();
+  undo();
   ss(70);
-  scribbleArea->doPaste();
-  scribbleArea->deleteSelection();
-  scribbleArea->undo();
-  scribbleArea->undo();
+  doCommand(ID_PASTE);
+  doCommand(ID_DELSEL);
+  undo();
+  undo();
   ss(80);
 }
 
@@ -504,13 +508,13 @@ void ScribbleTest::test3()
 void ScribbleTest::test4()
 {
   ss(0);
-  scribbleArea->nextPage(true);
+  doCommand(ID_NEXTPAGE);
   ss(10);
   ss(20);
-  scribbleArea->selectAll();
-  scribbleArea->copyToClipboard();
-  scribbleArea->deletePage(1);
-  scribbleArea->undo();
+  doCommand(ID_SELALL);
+  doCommand(ID_COPYSEL);
+  doCommand(ID_DELPAGE);
+  undo();
 }
 
 // test setting page properties and growing page
@@ -521,10 +525,10 @@ void ScribbleTest::test5()
   PageProperties props(600, 800, 30, 30, 30, 0xFFFFFF00, 0x7F0000FF);
   ss(0);
   ss(10);
-  scribbleArea->setPageProperties(&props, false, true, false);
+  scribbleDoc->setPageProperties(&props, false, true, false);
   ss(20);
   // add new page
-  scribbleArea->nextPage(true);
+  doCommand(ID_NEXTPAGE);
   ss(0);
   // grow new page
   ie(104.4, 900, 0, pen, press);
@@ -568,7 +572,7 @@ void ScribbleTest::test7()
   // easier to figure out what's going on if screen space and Dim space are the same
   scribbleArea->gotoPos(0, Point(0,0));
   PageProperties props(700, 800, 0, 40, 100);
-  scribbleArea->setPageProperties(&props, false, true, false);
+  scribbleDoc->setPageProperties(&props, false, true, false);
   // create 3 lines of "text";  note: width of ss is 27.4
   for(int offset = 15; offset < 500; offset += 139) {
     s1(offset, 0);
@@ -601,7 +605,7 @@ void ScribbleTest::test7()
   ie(200, 180, 0, pen);
   ie(310, 180, 0, pen);
   ie(0, 0, 0, pen, release);
-  scribbleArea->undo();
+  undo();
 
   // test non-ruled insert space
   s1(0, 280);
@@ -619,13 +623,13 @@ void ScribbleTest::test7()
 void ScribbleTest::test8()
 {
   PageProperties props(700, 800, 0, 40, 100);
-  scribbleArea->setPageProperties(&props, false, true, false);
+  scribbleDoc->setPageProperties(&props, false, true, false);
   // add new page
   s2(400,60);
-  scribbleArea->nextPage(true);
+  doCommand(ID_NEXTPAGE);
   scribbleArea->gotoPos(0, Point(0,0));
-  scribbleArea->selectAll();
-  scribbleArea->deleteSelection();
+  doCommand(ID_SELALL);
+  doCommand(ID_DELSEL);
   s2(200, 380);
   s2(150, 420);
   s2(200, 420);
@@ -672,7 +676,7 @@ void ScribbleTest::test9()
 {
   scribbleArea->gotoPos(0, Point(0,0));
   PageProperties props(700, 800, 0, 0, 0);
-  scribbleArea->setPageProperties(&props, false, true, false);
+  scribbleDoc->setPageProperties(&props, false, true, false);
   // create 4 lines of "text"
   for(int offset = 125; offset < 600; offset += 125) {
     s2(offset, 41);
@@ -720,7 +724,7 @@ void ScribbleTest::test9()
   ie(0, 0, 0, pen, release);
 
   // Must draw bookmarks so that findBookmark will work
-  scribbleArea->getDocument()->drawBookmarks(screenPaint, NULL);
+  scribbleDoc->document->drawBookmarks(screenPaint, NULL);
 
   // drop a bookmark off page, then undo - added because this used to cause crash on undo
   scribbleMode->setMode(MODE_BOOKMARK);
@@ -728,15 +732,15 @@ void ScribbleTest::test9()
   ie(20, 20, 0, pen);
   ie(-100, -100, 0, pen);
   ie(0, 0, 0, pen, release);
-  scribbleArea->doCommand(ID_UNDO);
-  scribbleArea->doCommand(ID_REDO);
+  undo();
+  redo();
 
-  scribbleArea->nextPage(true);
+  doCommand(ID_NEXTPAGE);
   // create hyperref, then convert (along with another stroke) to point to bookmark on first page
   hr(150, 100);
   s2(200, 100);
-  scribbleArea->selectAll();
-  scribbleArea->createHyperRef(scribbleArea->getDocument()->findBookmark(20));
+  doCommand(ID_SELALL);
+  scribbleArea->createHyperRef(scribbleDoc->document->findBookmark(20));
 
   // add bookmark to 2nd page ... id should not be serialized for this one
   scribbleMode->setMode(MODE_BOOKMARK);
@@ -746,12 +750,12 @@ void ScribbleTest::test9()
   ie(0, 0, 0, pen, release);
 
   // return to first page and copy the bookmark - the was crashing before we fixed clone bug with idStr
-  scribbleArea->prevPage();
-  scribbleArea->selectAll();
-  scribbleArea->copyToClipboard();
-  scribbleArea->doPaste();
-  scribbleArea->deleteSelection();
-  scribbleArea->nextPage();
+  doCommand(ID_PREVPAGE);
+  doCommand(ID_SELALL);
+  doCommand(ID_COPYSEL);
+  doCommand(ID_PASTE);
+  doCommand(ID_DELSEL);
+  doCommand(ID_NEXTPAGE);
 }
 
 // test changing properties and ins space ruled with hyperref
@@ -759,11 +763,11 @@ void ScribbleTest::test10()
 {
   // test creating new doc with different view modes (added because of crash)
   scribbleConfig->set("viewMode", 0);
-  scribbleArea->newDocument();
+  scribbleDoc->newDocument();
   scribbleConfig->set("viewMode", 2);
-  scribbleArea->newDocument();
+  scribbleDoc->newDocument();
   scribbleConfig->set("viewMode", 1);
-  scribbleArea->newDocument();
+  scribbleDoc->newDocument();
 
   scribbleArea->gotoPos(0, Point(0,0));
   hr(150, 100);
@@ -771,10 +775,10 @@ void ScribbleTest::test10()
   f2(250, 100);
   scribbleArea->selectAll();
 
-  scribbleArea->setPenColor(Painter::BLUE);
-  scribbleArea->setPenWidth(2);
-  scribbleArea->setPenWidth(3);
-  scribbleArea->undo();
+  scribbleDoc->setPenColor(Painter::BLUE);
+  scribbleDoc->setPenWidth(2);
+  scribbleDoc->setPenWidth(3);
+  undo();
 
   scribbleMode->setMode(MODE_INSSPACERULED);
   ie(104, 100, 0, pen, press);
@@ -788,7 +792,7 @@ void ScribbleTest::test11()
 {
   scribbleArea->gotoPos(0, Point(0,0));
   PageProperties props(1200, 800, 0, 40, 100);
-  scribbleArea->setPageProperties(&props, false, true, false);
+  scribbleDoc->setPageProperties(&props, false, true, false);
   // create 2 columns with 4 lines of "text" each
   for(int col = 0; col < 1000; col += 550) {
     for(int offset = 125; offset < 600; offset += 125) {
@@ -862,13 +866,13 @@ void ScribbleTest::test12()
   ie(106, 100, 0, pen);
   ie(60, 60, 0, pen);
   ie(0, 0, 0, pen, release);
-  scribbleArea->getDocument()->drawBookmarks(screenPaint, NULL);
-  scribbleArea->doCommand(ID_UNDO);
+  scribbleDoc->document->drawBookmarks(screenPaint, NULL);
+  undo();
   // back to our regularly scheduled programming...
   s2(200, 179);
   f2(250, 182);
   hr(300, 181);
-  scribbleArea->doCommand(ID_SELALL);
+  doCommand(ID_SELALL);
   // resize selection
   ie(320, 198, 0, pen, press);
   ie(350, 250, 0, pen);
@@ -897,40 +901,40 @@ void ScribbleTest::test13()
   scribbleArea->gotoPos(0, Point(0,0));
   s2(100, 100);
   // create page 2
-  scribbleArea->nextPage(true);
+  doCommand(ID_NEXTPAGE);
   s2(200, 200);
   // create page 3
-  scribbleArea->nextPage(true);
+  doCommand(ID_NEXTPAGE);
   s2(300, 300);
   // return to page 1
   scribbleArea->gotoPos(0, Point(0,0));
   // save
-  scribbleArea->saveDocument(filename);
+  scribbleDoc->saveDocument(filename);
   // reopen; only page 1 should be loaded
-  scribbleArea->openDocument(filename);
+  scribbleDoc->openDocument(filename);
 
   // change page properties - apply to all
   PageProperties props(0, 0, 30, 30, 30, 0xFFFFFF00, 0x7F0000FF);
-  scribbleArea->setPageProperties(&props, true, false, false);
+  scribbleDoc->setPageProperties(&props, true, false, false);
   // save and reopen
-  scribbleArea->saveDocument(filename);
-  scribbleArea->openDocument(filename);
+  scribbleDoc->saveDocument(filename);
+  scribbleDoc->openDocument(filename);
 
   // insert a new page after page 1
-  scribbleArea->doCommand(ID_PAGEAFTER);
+  doCommand(ID_PAGEAFTER);
   s2(150, 150);
   // save and reopen
-  scribbleArea->saveDocument(filename);
-  scribbleArea->openDocument(filename);
+  scribbleDoc->saveDocument(filename);
+  scribbleDoc->openDocument(filename);
 
   // remove page 3 (formerly page 2)
-  scribbleArea->nextPage();
-  scribbleArea->doCommand(ID_DELPAGE);
+  doCommand(ID_NEXTPAGE);
+  doCommand(ID_DELPAGE);
   // save and reopen
-  scribbleArea->saveDocument(filename);
-  scribbleArea->openDocument(filename);
+  scribbleDoc->saveDocument(filename);
+  scribbleDoc->openDocument(filename);
   // load all pages before deleting SVG files
-  scribbleArea->getDocument()->ensurePagesLoaded();
+  scribbleDoc->document->ensurePagesLoaded();
 
   // return to single file config for comparision of file result
   scribbleArea->cfg->set("singleFile", true);

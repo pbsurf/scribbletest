@@ -1,13 +1,13 @@
 #ifndef SCRIBBLETEST_H
 #define SCRIBBLETEST_H
 
-#include "scribblearea.h"
+#include "scribbledoc.h"
 #include "bookmarkview.h"
 
 class ScribbleTest {
 public:
   ScribbleTest(const char* cfgfile = NULL);
-  ScribbleTest(ScribbleArea* sa, BookmarkView* bv, ScribbleMode* sm);
+  ScribbleTest(ScribbleDoc* sd, BookmarkView* bv, ScribbleMode* sm);
   ~ScribbleTest();
 
   void runAll(const char* path);
@@ -19,6 +19,7 @@ public:
 
 private:
   ScribbleConfig* scribbleConfig;
+  ScribbleDoc* scribbleDoc;
   ScribbleArea* scribbleArea;
   ScribbleMode* scribbleMode;
   BookmarkView* bookmarkArea;
@@ -30,6 +31,9 @@ private:
   static const int pen = INPUTSOURCE_PEN;
   static const int press = INPUTEVENT_PRESS;
   static const int release = INPUTEVENT_RELEASE;
+  void undo() { scribbleDoc->doCommand(ID_UNDO); }
+  void redo() { scribbleDoc->doCommand(ID_REDO); }
+  void doCommand(int cmd) { scribbleDoc->doCommand(cmd); }
   bool testCompareFiles(const char* f1, const char* f2);
   void ie(Dim x, Dim y, Dim p, int src, int ev = 0, int mm = 0);
   void ss(Dim offset);
