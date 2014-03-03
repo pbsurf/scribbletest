@@ -25,6 +25,12 @@ ScribbleTest::ScribbleTest(const char* cfgfile)
   // disable input smoothing
   scribbleConfig->set("inputSmoothing", 0);
   scribbleConfig->set("saveThumbnail", 0);
+  // don't rely on default page setup
+  scribbleConfig->set("pageWidth", 768.0);
+  scribbleConfig->set("pageHeight", 1024.0);
+  scribbleConfig->set("xRuling", 0.0);
+  scribbleConfig->set("yRuling", 40.0);
+  scribbleConfig->set("marginLeft", 100.0);
   // disable DPI detection
   scribbleConfig->set("screenDPI", int(ScribbleView::DEFAULT_DPI));
   Painter::initPaintSystem();
@@ -950,7 +956,8 @@ bool DebugEventFilter::eventFilter(QObject* obj, QEvent* event)
 {
   //if(event->type() != QEvent::Timer)
   //  qDebug("DebugEventFilter: %s", getEventName(event));
-  qDebug() << obj->metaObject()->className() << " - " << obj->objectName() << " - " << event;
+  qDebug() << obj->metaObject()->className()
+           << "(" << (const void *)obj << ")  - " << obj->objectName() << " - " << event;
   if(event->type() == QEvent::MouseMove && ((QMouseEvent*)event)->buttons() == Qt::NoButton)
     qDebug("jackpot!");
   else if(obj->metaObject()->className() == QString("QRubberBand"))
