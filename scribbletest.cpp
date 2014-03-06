@@ -43,8 +43,6 @@ ScribbleTest::ScribbleTest(const char* cfgfile)
   bookmarkArea = new BookmarkView(scribbleConfig, scribbleDoc);
   // setup ScribbleArea
   scribbleDoc->newDocument();
-  // don't add extra points to test strokes
-  PointDensityFilter::MAX_POINT_DIST = 1000;
 
   screenRect = Rect(0,0,600,800);
   screenImg = new QImage(QSize(screenRect.width(), screenRect.height()), QImage::Format_RGB32);
@@ -121,6 +119,8 @@ void ScribbleTest::runAll(const char* path)
     &ScribbleTest::test13
   };
 
+  // don't add extra points to test strokes
+  PointDensityFilter::MAX_POINT_DIST = 1000;
   outPath = path;  // test13 needs path because it saves and reopens file multiple times
   Timestamp runAllTime = mSecSinceEpoch();
   for(unsigned int ii = 0; ii < sizeof(tests)/sizeof(tests[0]); ii++) {
@@ -151,6 +151,7 @@ void ScribbleTest::runAll(const char* path)
       nFailed++;
   }
   runAllTime = mSecSinceEpoch() - runAllTime;
+  PointDensityFilter::MAX_POINT_DIST = 2;
   resultStr.format("Tests completed in %d ms with %d failed tests.", int(runAllTime), nFailed);
 }
 
