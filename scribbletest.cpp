@@ -216,7 +216,7 @@ void ScribbleTest::inputTest()
   scribbleArea->scribbleInput->singleTouchMode = INPUTMODE_DRAW;
   bool win8ok = false;
   bool injok = true;
-#ifdef Q_OS_WIN
+#ifdef Q_OS_WIN_XXX
   if(QSysInfo::windowsVersion() > QSysInfo::WV_WINDOWS7) {
     QPoint origin = scribbleArea->mapToGlobal(QPoint(0, 0));
     int x = origin.x();
@@ -912,6 +912,11 @@ void ScribbleTest::test13()
   // create page 3
   doCommand(ID_NEXTPAGE);
   s2(300, 300);
+  // undo and redo page creation ... added because of a crash
+  doCommand(ID_UNDO);
+  doCommand(ID_UNDO);
+  doCommand(ID_REDO);
+  doCommand(ID_REDO);
   // return to page 1
   scribbleArea->gotoPos(0, Point(0,0));
   // save
