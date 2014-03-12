@@ -13,6 +13,9 @@
 //  X61T: TBD
 // standalone means not started from Qt Creator (so no qDebug output)
 
+// Qt 4 vs 5: no significant speed difference on Test or Performance Test; Qt 5 seems about 2x faster drawing
+//  stroked paths but no difference with filled paths
+
 // Just get main view working ... deal with bookmarks later
 ScribbleTest::ScribbleTest(const char* cfgfile)
 {
