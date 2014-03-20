@@ -36,6 +36,8 @@ ScribbleTest::ScribbleTest(const char* cfgfile)
   scribbleConfig->set("marginLeft", 100.0);
   // disable DPI detection
   scribbleConfig->set("screenDPI", int(ScribbleView::DEFAULT_DPI));
+  // disable pen detection (so that mouse input doesn't get disabled)
+  scribbleConfig->set("penType", ScribbleInput::DETECTED_PEN);
   Painter::initPaintSystem();
   scribbleMode = new ScribbleMode(scribbleConfig);
   // NOTE: if you remove or change this, you must find another way to init erase, select, ins space modes!
@@ -961,15 +963,28 @@ void ScribbleTest::test13()
 }
 
 
+void DebugEventFilter::printEvent(QObject* obj, QEvent* event)
+{
+  QString extra;
+  switch(event->type()) {
+  //case QEvent::Timer: return;
+  case QEvent::TabletMove:
+  case QEvent::TabletPress:
+  case QEvent::TabletRelease:
+  {
+    QTabletEvent* tev = static_cast<QTabletEvent*>(event);
+    extra = QString().sprintf("- tablet pos: %.3f, %.3f", tev->hiResGlobalX(), tev->hiResGlobalY());
+    break;
+  }
+  default:
+    break;
+  }
+  qDebug() << obj->metaObject()->className()
+           << "(" << (const void *)obj << ")  - " << obj->objectName() << " - " << event << QSTRINGCHAR(extra);
+}
+
 bool DebugEventFilter::eventFilter(QObject* obj, QEvent* event)
 {
-  //if(event->type() != QEvent::Timer)
-  //  qDebug("DebugEventFilter: %s", getEventName(event));
-  qDebug() << obj->metaObject()->className()
-           << "(" << (const void *)obj << ")  - " << obj->objectName() << " - " << event;
-  if(event->type() == QEvent::MouseMove && ((QMouseEvent*)event)->buttons() == Qt::NoButton)
-    qDebug("jackpot!");
-  else if(obj->metaObject()->className() == QString("QRubberBand"))
-    qDebug("rubber band!");
+  printEvent(obj, event);
   return QObject::eventFilter(obj, event);
 }

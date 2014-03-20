@@ -64,7 +64,8 @@ class DebugEventFilter : public QObject
 {
   Q_OBJECT
 public:
-  //DebugEventFilter(QObject* parent) : QObject(parent) {}
+  static void printEvent(QObject* obj, QEvent* event);
+
 protected:
   bool eventFilter(QObject* obj, QEvent* event);
 };
