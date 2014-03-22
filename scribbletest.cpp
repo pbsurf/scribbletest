@@ -5,7 +5,7 @@
 #include <QDebug>
 
 // Ideally, these tests should be run under valgrind to help check for memory leaks
-// renaming out files to refs (Linux):  for i in {0..10}; do mv "test${i}_out.html" "test${i}_ref.html"; done;
+// renaming out files to refs (Linux):  for i in {0..13}; do mv "test${i}_out.html" "test${i}_ref.html"; done;
 
 // runAll run times (tests 0 - 10):
 //  Debian-NDK VM (Qt 4.7 gcc): 440 ms (debug build), 12600 ms (valgrind, 2nd run)
@@ -27,7 +27,8 @@ ScribbleTest::ScribbleTest(const char* cfgfile)
   scribbleConfig->set("panFromEdge", false);
   // disable input smoothing
   scribbleConfig->set("inputSmoothing", 0);
-  scribbleConfig->set("saveThumbnail", 0);
+  // include thumbnail in test output as a check of rendering
+  scribbleConfig->set("saveThumbnail", 1);
   // don't rely on default page setup
   scribbleConfig->set("pageWidth", 768.0);
   scribbleConfig->set("pageHeight", 1024.0);
