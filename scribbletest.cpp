@@ -28,7 +28,8 @@ ScribbleTest::ScribbleTest(const char* cfgfile)
   // disable input smoothing
   scribbleConfig->set("inputSmoothing", 0);
   // include thumbnail in test output as a check of rendering
-  scribbleConfig->set("saveThumbnail", 1);
+  //  but don't draw page num since fonts are different on different platforms
+  scribbleConfig->set("saveThumbnail", 2);
   // don't rely on default page setup
   scribbleConfig->set("pageWidth", 768.0);
   scribbleConfig->set("pageHeight", 1024.0);
