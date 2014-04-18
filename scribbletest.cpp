@@ -1,5 +1,7 @@
 #include "scribbletest.h"
 #include "strokebuilder.h"
+#include "scribblesync.h"
+
 #include <QtGui>
 #include <QApplication>
 #include <QDebug>
@@ -17,7 +19,7 @@
 //  stroked paths but no difference with filled paths
 
 // Just get main view working ... deal with bookmarks later
-ScribbleTest::ScribbleTest(const char* cfgfile)
+ScribbleTest::ScribbleTest(const QString& path)
 {
   scribbleConfig = new ScribbleConfig();
   scribbleConfig->set("singleFile", true);
@@ -40,6 +42,8 @@ ScribbleTest::ScribbleTest(const char* cfgfile)
   scribbleConfig->set("screenDPI", int(ScribbleView::DEFAULT_DPI));
   // disable pen detection (so that mouse input doesn't get disabled)
   scribbleConfig->set("penType", ScribbleInput::DETECTED_PEN);
+  // set server for synctest
+  scribbleConfig->set("syncServer", "192.168.141.129");
   Painter::initPaintSystem();
   scribbleMode = new ScribbleMode(scribbleConfig);
   // NOTE: if you remove or change this, you must find another way to init erase, select, ins space modes!
@@ -48,9 +52,11 @@ ScribbleTest::ScribbleTest(const char* cfgfile)
   scribbleDoc = new ScribbleDoc(NULL, scribbleConfig, scribbleMode);
   scribbleArea = scribbleDoc->addArea();
   bookmarkArea = new BookmarkView(scribbleConfig, scribbleDoc);
+  syncSlave = NULL;
+  waitForSyncDone = false;
+  outPath = path;
   // setup ScribbleArea
   scribbleDoc->newDocument();
-
   screenRect = Rect(0,0,600,800);
   screenImg = new QImage(QSize(screenRect.width(), screenRect.height()), QImage::Format_RGB32);
   screenPaint = new Painter(screenImg);
@@ -72,6 +78,9 @@ ScribbleTest::ScribbleTest(ScribbleDoc* sd, BookmarkView* bv, ScribbleMode* sm)
 
 ScribbleTest::~ScribbleTest()
 {
+  if(syncSlave)
+    delete syncSlave;
+
   if(scribbleConfig) {
     delete screenPaint;
     delete screenImg;
@@ -84,6 +93,33 @@ ScribbleTest::~ScribbleTest()
   scribbleArea = NULL;
   scribbleMode = NULL;
   scribbleConfig = NULL;
+}
+
+void ScribbleTest::startSyncTest(int testnum)
+{
+  syncTestNum = testnum;
+  scribbleDoc->newDocument();
+  scribbleDoc->openSharedDoc(QSTRINGCHAR("testdoc" + QString::number(testnum)), "SCRIBBLE_SYNC_TEST", false);
+  QObject::connect(scribbleDoc->scribbleSync, SIGNAL(userMessage(QString,int)), this, SLOT(syncSlaveMsg(QString,int)));
+  waitForSyncDone = true;
+}
+
+// wait on disconnect message to save and check slave document and advance to next test
+// note that the slave doesn't load any documents
+void ScribbleTest::syncSlaveMsg(QString msg, int level)
+{
+  if(!msg.contains("testuser1 disconnected"))
+    return;
+
+  // write output file
+  Element::SVG_NO_TIMESTAMP = true;
+  QString basefile = outPath + "/test/test" + QString::number(syncTestNum);
+  QString outfile = basefile + "_out.html";
+  scribbleDoc->saveDocument(QSTRINGCHAR(outfile));
+  // compare output to reference; tests of one-file-per-page must handle the svg files themselves
+  if(testCompareFiles(QSTRINGCHAR(outfile), QSTRINGCHAR(basefile + "_ref.html")))
+    remove(QSTRINGCHAR(outfile));
+  waitForSyncDone = false;
 }
 
 bool ScribbleTest::testCompareFiles(const char* f1, const char* f2)
@@ -104,11 +140,9 @@ bool ScribbleTest::testCompareFiles(const char* f1, const char* f2)
 // a bunch of integration tests ... any "*_out.html" files present after test indicate a failure
 // TODO: add some tests to capture scribbleArea->imgPaint->image and compare to a ref
 
-void ScribbleTest::runAll(const char* path)
+void ScribbleTest::runAll(bool runsynctest)
 {
   int nFailed = 0;
-  char buff[256];
-  char reffile[256];
   void (ScribbleTest::*tests[])() = {
     &ScribbleTest::test0,
     &ScribbleTest::test1,
@@ -125,35 +159,66 @@ void ScribbleTest::runAll(const char* path)
     &ScribbleTest::test12,
     &ScribbleTest::test13
   };
+  unsigned int totaltests = sizeof(tests)/sizeof(tests[0]);
+  unsigned int nonsynctests = totaltests;  // - 1
+
+  // create sync slave for sync test
+  if(runsynctest) {
+    // we are testuser1; slave is testuser2
+    scribbleConfig->set("syncUser", "testuser1");
+    syncSlave = new ScribbleTest(outPath);
+    syncSlave->scribbleConfig->set("syncUser", "testuser2");
+  }
 
   // don't add extra points to test strokes
   PointDensityFilter::MAX_POINT_DIST = 1000;
-  outPath = path;  // test13 needs path because it saves and reopens file multiple times
   Timestamp runAllTime = mSecSinceEpoch();
-  for(unsigned int ii = 0; ii < sizeof(tests)/sizeof(tests[0]); ii++) {
+  for(unsigned int ii = 0; true; ii++) {
+    QString basefile = outPath + "/test/test" + QString::number(ii);
     scribbleDoc->newDocument();
     // attempt to open input file; fails quietly if not present
-    // OH NOES!!! buffer overrun danger here!
-    sprintf(buff, "%s/test/test%d_in.html", path, ii);
-    scribbleDoc->openDocument(buff);
+    scribbleDoc->openDocument(QSTRINGCHAR(basefile + "_in.html"));
     // reset mode
     scribbleMode->setRuled(true);
     scribbleMode->setMode(MODE_STROKE);
     scribbleDoc->setPen(ScribblePen(Painter::BLACK, 1, 0));
+
+    if(syncSlave) {
+      // wait for slave to finish previous test
+      while(syncSlave->waitForSyncDone)
+        QApplication::processEvents();
+      if(ii >= totaltests)
+        break;
+      // create whiteboard
+      scribbleDoc->openSharedDoc(QSTRINGCHAR("testdoc" + QString::number(ii)), "SCRIBBLE_SYNC_TEST", true);
+      // wait until we connect
+      while(!scribbleDoc->scribbleSync->isSyncActive())
+        QApplication::processEvents();
+      // connect the slave
+      syncSlave->startSyncTest(ii);
+      // wait until slave connects
+      while(!syncSlave->scribbleDoc->scribbleSync->isSyncActive())
+        QApplication::processEvents();
+    }
+    else if(ii >= nonsynctests)
+      break;
+
     // wow...
     (this->*tests[ii])();
 
+    // when running sync test, slave writes output
+    if(syncSlave)
+      continue;
+
     scribbleArea->doPaintEvent(screenPaint); //, screenRect);
-    sprintf(buff, "%s/test/test%d_out.png", path, ii);
-    screenImg->save(buff, "png");
+    screenImg->save(basefile + "_out.png", "png");
     // write output file
     Element::SVG_NO_TIMESTAMP = true;
-    sprintf(buff, "%s/test/test%d_out.html", path, ii);
-    scribbleDoc->saveDocument(buff);
+    QString outfile = basefile + "_out.html";
+    scribbleDoc->saveDocument(QSTRINGCHAR(outfile));
     // compare output to reference; tests of one-file-per-page must handle the svg files themselves
-    sprintf(reffile, "%s/test/test%d_ref.html", path, ii);
-    if(testCompareFiles(buff, reffile))
-      remove(buff);
+    if(testCompareFiles(QSTRINGCHAR(outfile), QSTRINGCHAR(basefile + "_ref.html")))
+      remove(QSTRINGCHAR(outfile));
     else
       nFailed++;
   }
@@ -907,8 +972,8 @@ void ScribbleTest::test12()
 void ScribbleTest::test13()
 {
   // setup output path
-  char filename[256];
-  sprintf(filename, "%s/test/test13_out.html", outPath);
+  QByteArray qfilename = (outPath + "/test/test13_out.html").toLatin1();
+  const char* filename = qfilename.constData();
   scribbleArea->cfg->set("singleFile", false);
 
   // create page 1
@@ -958,10 +1023,7 @@ void ScribbleTest::test13()
   // return to single file config for comparision of file result
   scribbleArea->cfg->set("singleFile", true);
   // remove SVG files
-  int ii = 1;
-  do {
-    sprintf(filename, "%s/test/test13_out_page%03d.svg", outPath, ii++);
-  } while(remove(filename) == 0);
+  ScribbleDoc::deleteDocument(filename);
 }
 
 

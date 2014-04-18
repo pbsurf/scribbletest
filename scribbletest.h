@@ -4,18 +4,24 @@
 #include "scribbledoc.h"
 #include "bookmarkview.h"
 
-class ScribbleTest {
+class ScribbleTest : public QObject
+{
+  Q_OBJECT
+
 public:
-  ScribbleTest(const char* cfgfile = NULL);
+  ScribbleTest(const QString &path);
   ScribbleTest(ScribbleDoc* sd, BookmarkView* bv, ScribbleMode* sm);
   ~ScribbleTest();
 
-  void runAll(const char* path);
+  void runAll(bool runsynctest = false);
   void performanceTest();
   void inputTest();
 
   // result string to be read by caller
   fstring resultStr;
+
+private slots:
+  void syncSlaveMsg(QString msg, int level);
 
 private:
   ScribbleConfig* scribbleConfig;
@@ -26,7 +32,12 @@ private:
   QImage* screenImg;
   Painter* screenPaint;
   Rect screenRect;
-  const char* outPath;
+  QString outPath;
+
+  ScribbleTest* syncSlave;
+  int syncTestNum;
+  bool waitForSyncDone;
+  void startSyncTest(int testnum);
 
   static const int pen = INPUTSOURCE_PEN;
   static const int press = INPUTEVENT_PRESS;
