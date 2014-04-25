@@ -38,6 +38,7 @@ private:
   int syncTestNum;
   bool waitForSyncDone;
   void startSyncTest(int testnum);
+  void waitForSync();
 
   static const int pen = INPUTSOURCE_PEN;
   static const int press = INPUTEVENT_PRESS;
@@ -45,7 +46,7 @@ private:
   void undo() { scribbleDoc->doCommand(ID_UNDO); }
   void redo() { scribbleDoc->doCommand(ID_REDO); }
   void doCommand(int cmd) { scribbleDoc->doCommand(cmd); }
-  bool testCompareFiles(const char* f1, const char* f2);
+  bool testCompareFiles(const char* f1, const char* f2, bool svgonly = false);
   void ie(Dim x, Dim y, Dim p, int src, int ev = 0, int mm = 0);
   void ss(Dim offset);
   void s1(Dim xoffset, Dim yoffset);
@@ -68,6 +69,9 @@ private:
   void test11();
   void test12();
   void test13();
+  void test14();
+  void test14slave1();
+  void test14slave2();
 };
 
 // debug event filter - prints name of every event received

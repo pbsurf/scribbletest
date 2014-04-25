@@ -5,6 +5,7 @@
 #include <QtGui>
 #include <QApplication>
 #include <QDebug>
+#include <QTcpSocket>
 
 // Ideally, these tests should be run under valgrind to help check for memory leaks
 // renaming out files to refs (Linux):  for i in {0..13}; do mv "test${i}_out.html" "test${i}_ref.html"; done;
@@ -111,30 +112,40 @@ void ScribbleTest::syncSlaveMsg(QString msg, int level)
   if(!msg.contains("testuser1 disconnected"))
     return;
 
+  // test specific hacks
+  if(syncTestNum == 5)
+    scribbleDoc->cfg->set("saveRuleLines", true);
+
   // write output file
   Element::SVG_NO_TIMESTAMP = true;
   QString basefile = outPath + "/test/test" + QString::number(syncTestNum);
   QString outfile = basefile + "_out.html";
   scribbleDoc->saveDocument(QSTRINGCHAR(outfile));
   // compare output to reference; tests of one-file-per-page must handle the svg files themselves
-  if(testCompareFiles(QSTRINGCHAR(outfile), QSTRINGCHAR(basefile + "_ref.html")))
+  if(testCompareFiles(QSTRINGCHAR(outfile), QSTRINGCHAR(basefile + "_ref.html"), true))
     remove(QSTRINGCHAR(outfile));
   waitForSyncDone = false;
 }
 
-bool ScribbleTest::testCompareFiles(const char* f1, const char* f2)
+// if svgonly is true, comparison will start from first "<svg" instead of beginning of file
+bool ScribbleTest::testCompareFiles(const char* f1, const char* f2, bool svgonly)
 {
   simplebuf b1;
   simplebuf b2;
   readall(&b1, f1);
   readall(&b2, f2);
-  if(b1.pos != b2.pos || b1.pos == 0)
+  // fail if either file is missing
+  if(b1.pos == 0 || b2.pos == 0)
     return false;
-  for(unsigned int ii = 0; ii < b1.pos; ii++) {
-    if(b1.data[ii] != b2.data[ii])
-      return false;
+  // convert to null-terminated strings (overwrites last char)
+  b1.data[b1.pos-1] = '\0';
+  b2.data[b2.pos-1] = '\0';
+  if(svgonly) {
+    char* s1 = strstr(b1.data, "<svg");
+    char* s2 = strstr(b2.data, "<svg");
+    return s1 && s2 && strcmp(s1, s2) == 0;
   }
-  return true;
+  return b1.pos == b2.pos && strcmp(b1.data, b2.data) == 0;
 }
 
 // a bunch of integration tests ... any "*_out.html" files present after test indicate a failure
@@ -157,10 +168,11 @@ void ScribbleTest::runAll(bool runsynctest)
     &ScribbleTest::test10,
     &ScribbleTest::test11,
     &ScribbleTest::test12,
-    &ScribbleTest::test13
+    &ScribbleTest::test13,
+    &ScribbleTest::test14
   };
   unsigned int totaltests = sizeof(tests)/sizeof(tests[0]);
-  unsigned int nonsynctests = totaltests;  // - 1
+  unsigned int nonsynctests = totaltests - 1;  // test14 is for sync only
 
   // create sync slave for sync test
   if(runsynctest) {
@@ -207,8 +219,12 @@ void ScribbleTest::runAll(bool runsynctest)
     (this->*tests[ii])();
 
     // when running sync test, slave writes output
-    if(syncSlave)
+    if(syncSlave) {
+      // wait for server to disconnect the socket upon receiving /end
+      //while(scribbleDoc->scribbleSync->socket->state() == QAbstractSocket::ConnectedState) //->bytesToWrite() > 0)
+      //  QApplication::processEvents();
       continue;
+    }
 
     scribbleArea->doPaintEvent(screenPaint); //, screenRect);
     screenImg->save(basefile + "_out.png", "png");
@@ -841,18 +857,20 @@ void ScribbleTest::test9()
 void ScribbleTest::test10()
 {
   // test creating new doc with different view modes (added because of crash)
-  scribbleConfig->set("viewMode", 0);
-  scribbleDoc->newDocument();
-  scribbleConfig->set("viewMode", 2);
-  scribbleDoc->newDocument();
-  scribbleConfig->set("viewMode", 1);
-  scribbleDoc->newDocument();
+  if(!syncSlave) {
+    scribbleConfig->set("viewMode", 0);
+    scribbleDoc->newDocument();
+    scribbleConfig->set("viewMode", 2);
+    scribbleDoc->newDocument();
+    scribbleConfig->set("viewMode", 1);
+    scribbleDoc->newDocument();
+  }
 
   scribbleArea->gotoPos(0, Point(0,0));
   hr(150, 100);
   s2(200, 100);
   f2(250, 100);
-  scribbleArea->selectAll();
+  doCommand(ID_SELALL);
 
   scribbleDoc->setPenColor(Painter::BLUE);
   scribbleDoc->setPenWidth(2);
@@ -974,7 +992,6 @@ void ScribbleTest::test13()
   // setup output path
   QByteArray qfilename = (outPath + "/test/test13_out.html").toLatin1();
   const char* filename = qfilename.constData();
-  scribbleArea->cfg->set("singleFile", false);
 
   // create page 1
   scribbleArea->gotoPos(0, Point(0,0));
@@ -993,39 +1010,96 @@ void ScribbleTest::test13()
   // return to page 1
   scribbleArea->gotoPos(0, Point(0,0));
   // save
-  scribbleDoc->saveDocument(filename);
-  // reopen; only page 1 should be loaded
-  scribbleDoc->openDocument(filename);
+  if(!syncSlave) {
+    scribbleArea->cfg->set("singleFile", false);
+    scribbleDoc->saveDocument(filename);
+    // reopen; only page 1 should be loaded
+    scribbleDoc->openDocument(filename);
+  }
 
   // change page properties - apply to all
   PageProperties props(0, 0, 30, 30, 30, 0xFFFFFF00, 0x7F0000FF);
   scribbleDoc->setPageProperties(&props, true, false, false);
   // save and reopen
-  scribbleDoc->saveDocument(filename);
-  scribbleDoc->openDocument(filename);
+  if(!syncSlave) {
+    scribbleDoc->saveDocument(filename);
+    scribbleDoc->openDocument(filename);
+  }
 
   // insert a new page after page 1
   doCommand(ID_PAGEAFTER);
   s2(150, 150);
   // save and reopen
-  scribbleDoc->saveDocument(filename);
-  scribbleDoc->openDocument(filename);
+  if(!syncSlave) {
+    scribbleDoc->saveDocument(filename);
+    scribbleDoc->openDocument(filename);
+  }
 
   // remove page 3 (formerly page 2)
   doCommand(ID_NEXTPAGE);
   doCommand(ID_DELPAGE);
   // save and reopen
-  scribbleDoc->saveDocument(filename);
-  scribbleDoc->openDocument(filename);
-  // load all pages before deleting SVG files
-  scribbleDoc->document->ensurePagesLoaded();
-
-  // return to single file config for comparision of file result
-  scribbleArea->cfg->set("singleFile", true);
-  // remove SVG files
-  ScribbleDoc::deleteDocument(filename);
+  if(!syncSlave) {
+    scribbleDoc->saveDocument(filename);
+    scribbleDoc->openDocument(filename);
+    // load all pages before deleting SVG files
+    scribbleDoc->document->ensurePagesLoaded();
+    // return to single file config for comparision of file result
+    scribbleArea->cfg->set("singleFile", true);
+    // remove SVG files
+    ScribbleDoc::deleteDocument(filename);
+  }
 }
 
+// back and forth test for whiteboard
+
+void ScribbleTest::waitForSync()
+{
+  // wait until all items are sent and echoed back from server, then wait until slave has received all items (same number of byyes)
+  // alternative, wait until master and slave stroke counts are equal?
+  ScribbleSync* ss = scribbleDoc->scribbleSync;
+  while(ss->canSendHist() || ss->rcvdPos != ss->sentPos || ss->bytesRcvd > syncSlave->scribbleDoc->scribbleSync->bytesRcvd)
+    QApplication::processEvents();
+}
+
+void ScribbleTest::test14()
+{
+  scribbleArea->gotoPos(0, Point(0,0));
+  hr(150, 100);
+  s2(200, 100);
+  f2(250, 100);
+  doCommand(ID_SELALL);
+
+  waitForSync();
+  syncSlave->test14slave1();
+
+  // move the selection
+  ie(200, 100, 0, pen, press);
+  ie(210, 120, 0, pen);
+  ie(220, 160, 0, pen);
+  ie(0, 0, 0, pen, release);
+
+  waitForSync();
+  syncSlave->test14slave2();
+}
+
+void ScribbleTest::test14slave1()
+{
+  scribbleArea->gotoPos(0, Point(0,0));
+  s2(550, 550);
+  // apply free eraser to image
+  scribbleMode->setMode(MODE_ERASERULED);
+  ie(245, 101, 0, pen, press);
+  ie(270, 99, 0, pen);
+  ie(300, 100, 0, pen);
+  ie(0, 0, 0, pen, release);
+}
+
+// restore the deleted stroke
+void ScribbleTest::test14slave2()
+{
+  undo();
+}
 
 void DebugEventFilter::printEvent(QObject* obj, QEvent* event)
 {
