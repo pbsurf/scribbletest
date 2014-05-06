@@ -43,8 +43,6 @@ ScribbleTest::ScribbleTest(const QString& path)
   scribbleConfig->set("screenDPI", int(ScribbleView::DEFAULT_DPI));
   // disable pen detection (so that mouse input doesn't get disabled)
   scribbleConfig->set("penType", ScribbleInput::DETECTED_PEN);
-  // set server for synctest
-  scribbleConfig->set("syncServer", "192.168.141.129");
   Painter::initPaintSystem();
   scribbleMode = new ScribbleMode(scribbleConfig);
   // NOTE: if you remove or change this, you must find another way to init erase, select, ins space modes!
@@ -124,6 +122,8 @@ void ScribbleTest::syncSlaveMsg(QString msg, int level)
   // compare output to reference; tests of one-file-per-page must handle the svg files themselves
   if(testCompareFiles(QSTRINGCHAR(outfile), QSTRINGCHAR(basefile + "_ref.html"), true))
     remove(QSTRINGCHAR(outfile));
+  else
+    ++nFailed;
   waitForSyncDone = false;
 }
 
@@ -153,7 +153,7 @@ bool ScribbleTest::testCompareFiles(const char* f1, const char* f2, bool svgonly
 
 void ScribbleTest::runAll(bool runsynctest)
 {
-  int nFailed = 0;
+  nFailed = 0;
   void (ScribbleTest::*tests[])() = {
     &ScribbleTest::test0,
     &ScribbleTest::test1,
@@ -180,6 +180,8 @@ void ScribbleTest::runAll(bool runsynctest)
     scribbleConfig->set("syncUser", "testuser1");
     syncSlave = new ScribbleTest(outPath);
     syncSlave->scribbleConfig->set("syncUser", "testuser2");
+    syncSlave->scribbleConfig->set("syncServer", scribbleConfig->String("syncServer"));
+    syncSlave->nFailed = 0;
   }
 
   // don't add extra points to test strokes
@@ -219,12 +221,8 @@ void ScribbleTest::runAll(bool runsynctest)
     (this->*tests[ii])();
 
     // when running sync test, slave writes output
-    if(syncSlave) {
-      // wait for server to disconnect the socket upon receiving /end
-      //while(scribbleDoc->scribbleSync->socket->state() == QAbstractSocket::ConnectedState) //->bytesToWrite() > 0)
-      //  QApplication::processEvents();
+    if(syncSlave)
       continue;
-    }
 
     scribbleArea->doPaintEvent(screenPaint); //, screenRect);
     screenImg->save(basefile + "_out.png", "png");
@@ -240,6 +238,7 @@ void ScribbleTest::runAll(bool runsynctest)
   }
   runAllTime = mSecSinceEpoch() - runAllTime;
   PointDensityFilter::MAX_POINT_DIST = 2;
+  if(syncSlave)  nFailed = syncSlave->nFailed;
   resultStr.format("Tests completed in %d ms with %d failed tests.", int(runAllTime), nFailed);
 }
 

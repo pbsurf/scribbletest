@@ -7,7 +7,7 @@
 class ScribbleTest : public QObject
 {
   Q_OBJECT
-
+  friend class MainWindow;
 public:
   ScribbleTest(const QString &path);
   ScribbleTest(ScribbleDoc* sd, BookmarkView* bv, ScribbleMode* sm);
@@ -33,6 +33,7 @@ private:
   Painter* screenPaint;
   Rect screenRect;
   QString outPath;
+  int nFailed;
 
   ScribbleTest* syncSlave;
   int syncTestNum;
