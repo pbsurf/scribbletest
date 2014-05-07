@@ -1094,10 +1094,16 @@ void ScribbleTest::test14slave1()
   ie(0, 0, 0, pen, release);
 }
 
-// restore the deleted stroke
 void ScribbleTest::test14slave2()
 {
+  // restore the deleted stroke
   undo();
+
+  // disconnect and reconnect to whiteboard
+  startSyncTest(14);
+  // wait for connection
+  while(!scribbleDoc->scribbleSync->isSyncActive())
+    QApplication::processEvents();
 }
 
 void DebugEventFilter::printEvent(QObject* obj, QEvent* event)
