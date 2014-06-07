@@ -73,6 +73,7 @@ ScribbleTest::ScribbleTest(ScribbleDoc* sd, BookmarkView* bv, ScribbleMode* sm)
   scribbleConfig = NULL;
   screenImg = NULL;
   screenPaint = NULL;
+  syncSlave = NULL;
 }
 
 ScribbleTest::~ScribbleTest()
