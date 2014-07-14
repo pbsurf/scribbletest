@@ -155,6 +155,8 @@ bool ScribbleTest::testCompareFiles(const char* f1, const char* f2, bool svgonly
 void ScribbleTest::runAll(bool runsynctest)
 {
   nFailed = 0;
+  int nThumbsFailed = 0;
+  QStringList slFailed;
   void (ScribbleTest::*tests[])() = {
     &ScribbleTest::test0,
     &ScribbleTest::test1,
@@ -226,21 +228,29 @@ void ScribbleTest::runAll(bool runsynctest)
       continue;
 
     scribbleArea->doPaintEvent(screenPaint); //, screenRect);
-    screenImg->save(basefile + "_out.png", "png");
+    // We have looked the png output in ages, so stop generating for now
+    //screenImg->save(basefile + "_out.png", "png");
     // write output file
     Element::SVG_NO_TIMESTAMP = true;
     QString outfile = basefile + "_out.html";
     scribbleDoc->saveDocument(QSTRINGCHAR(outfile));
     // compare output to reference; tests of one-file-per-page must handle the svg files themselves
+    // we've had so many problems with thumbnails that we will count mismatches of those separately
     if(testCompareFiles(QSTRINGCHAR(outfile), QSTRINGCHAR(basefile + "_ref.html")))
       remove(QSTRINGCHAR(outfile));
-    else
+    else if(testCompareFiles(QSTRINGCHAR(outfile), QSTRINGCHAR(basefile + "_ref.html"), true))
+      nThumbsFailed++;
+    else {
+      slFailed.append(QString::number(ii));
       nFailed++;
+    }
   }
   runAllTime = mSecSinceEpoch() - runAllTime;
   PointDensityFilter::MAX_POINT_DIST = 2;
-  if(syncSlave)  nFailed = syncSlave->nFailed;
-  resultStr.format("Tests completed in %d ms with %d failed tests.", int(runAllTime), nFailed);
+  if(syncSlave)
+    nFailed = syncSlave->nFailed;
+  resultStr.format("Tests completed in %d ms with %d failed tests (%s) and %d failed thumbnails.",
+      int(runAllTime), nFailed, QSTRINGCHAR(slFailed.join(", ")), nThumbsFailed);
 }
 
 void ScribbleTest::performanceTest()
