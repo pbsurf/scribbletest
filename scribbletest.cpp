@@ -303,10 +303,26 @@ void ScribbleTest::performanceTest()
   int panTime = t1 - t0;
   t0 = t1;
   int panFrames = scribbleArea->frameCount;
+
+  // save, then load file
+  QString outfile = QString(PROJECT_PATH) + "/test/perftest.html";
+  scribbleDoc->cfg->set("singleFile", true);
+  scribbleDoc->saveDocument(QSTRINGCHAR(outfile));
+  t1 = mSecSinceEpoch();
+  int saveTime = t1 - t0;
+  t0 = t1;
+  scribbleDoc->openDocument(QSTRINGCHAR(outfile));
+  t1 = mSecSinceEpoch();
+  int loadTime = t1 - t0;
+  t0 = t1;
+  int fileSize = QFileInfo(outfile).size();
+  remove(QSTRINGCHAR(outfile));
+
   resultStr.format(
-      "Draw: %d frames in %d ms (%f FPS)\nMove: %d frames in %d ms (%f FPS)\nPan: %d frames in %d ms (%f FPS)",
+      "Draw: %d frames in %d ms (%f FPS)\nMove: %d frames in %d ms (%f FPS)\nPan: %d frames in %d ms (%f FPS)"
+      "\nSave: %d bytes in %d ms\nLoad: %d ms",
       drawFrames, drawTime, (drawFrames*1000.0)/drawTime, moveFrames, moveTime, (moveFrames*1000.0)/moveTime,
-      panFrames, panTime, (panFrames*1000.0)/panTime);
+      panFrames, panTime, (panFrames*1000.0)/panTime, fileSize, saveTime, loadTime);
 }
 
 // input test; have to use touch since Windows only provides InjectTouchInput (not pen input)
