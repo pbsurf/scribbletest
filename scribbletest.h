@@ -35,11 +35,14 @@ private:
   QString outPath;
   int nFailed;
 
+  // shared whiteboard testing
+  pugi::xml_document swbXML;
   ScribbleTest* syncSlave;
   int syncTestNum;
   bool waitForSyncDone;
   void startSyncTest(int testnum);
   void waitForSync();
+  void checkStrokeMap(ScribbleDoc* doc, const char* msg);
 
   static const int pen = INPUTSOURCE_PEN;
   static const int press = INPUTEVENT_PRESS;
