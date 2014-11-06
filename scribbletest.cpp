@@ -192,6 +192,7 @@ void ScribbleTest::runAll(bool runsynctest)
   Timestamp runAllTime = mSecSinceEpoch();
   for(unsigned int ii = 0; true; ii++) {
     QString basefile = outPath + "/test/test" + QString::number(ii);
+    doCommand(ID_RESETZOOM);
     scribbleDoc->newDocument();
     // attempt to open input file; fails quietly if not present
     scribbleDoc->openDocument(QSTRINGCHAR(basefile + "_in.html"));
@@ -220,7 +221,7 @@ void ScribbleTest::runAll(bool runsynctest)
     else if(ii >= nonsynctests)
       break;
 
-    // wow...
+    // array of pointers to member functions, wow...
     (this->*tests[ii])();
 
     // when running sync test, slave writes output
@@ -379,6 +380,16 @@ void ScribbleTest::ie(Dim x, Dim y, Dim p, int src, int ev, int mm)
   scribbleArea->scribbleInput->doInputEvent(x, y, p, (inputsource_t)src, (inputevent_t)ev, mm);
 }
 
+void ScribbleTest::mtinput(inputevent_t ev1, Dim x1, Dim y1, inputevent_t ev2, Dim x2, Dim y2)
+{
+  InputEvent ievent(INPUTSOURCE_TOUCH, MODEMOD_NONE);
+  if(ev1 != INPUTEVENT_NONE)
+    ievent.points.push_back(InputPoint(ev1, x1, y1, 1));  // pressure = 1
+  if(ev2 != INPUTEVENT_NONE)
+    ievent.points.push_back(InputPoint(ev2, x2, y2, 1));
+  scribbleArea->scribbleInput->doInputEvent(ievent);
+}
+
 // draw a simple stroke
 void ScribbleTest::ss(Dim offset)
 {
@@ -442,6 +453,7 @@ void ScribbleTest::hr(Dim xoffset, Dim yoffset)
 
 void ScribbleTest::test0()
 {
+  //scribbleArea->gotoPos(0, Point(0,0));
   ie(104.4, 184.4, 0, pen, press);
   ie(124.5, 162.2, 0, pen);
   ie(131.8, 167.3, 0, pen);
@@ -453,6 +465,28 @@ void ScribbleTest::test0()
   ie(16.5, 99.9, 0, pen);
   ie(15.8, 112.3, 0, pen);
   ie(0, 0, 0, pen, release);
+
+  // pinch zoom (will also test rounding to nearest zoom level)
+  mtinput(INPUTEVENT_PRESS, 120, 140, INPUTEVENT_NONE, 0, 0);
+  mtinput(INPUTEVENT_MOVE, 135, 128, INPUTEVENT_NONE, 0, 0);
+  mtinput(INPUTEVENT_MOVE, 132, 125, INPUTEVENT_PRESS, 345, 327);
+  mtinput(INPUTEVENT_MOVE, 144, 137, INPUTEVENT_MOVE, 340, 317);
+  mtinput(INPUTEVENT_MOVE, 200, 197, INPUTEVENT_MOVE, 290, 295);
+  mtinput(INPUTEVENT_MOVE, 216, 210, INPUTEVENT_MOVE, 264, 256);
+  mtinput(INPUTEVENT_RELEASE, 216, 210, INPUTEVENT_MOVE, 262, 256);
+  mtinput(INPUTEVENT_NONE, 0, 0, INPUTEVENT_MOVE, 260, 254);
+  mtinput(INPUTEVENT_NONE, 0, 0, INPUTEVENT_MOVE, 260, 246);
+  mtinput(INPUTEVENT_NONE, 0, 0, INPUTEVENT_RELEASE, 260, 246);
+
+  // test cancellation of touch
+  mtinput(INPUTEVENT_PRESS, 120, 140, INPUTEVENT_NONE, 0, 0);
+  mtinput(INPUTEVENT_MOVE, 135, 128, INPUTEVENT_NONE, 0, 0);
+  mtinput(INPUTEVENT_MOVE, 132, 125, INPUTEVENT_PRESS, 345, 327);
+  mtinput(INPUTEVENT_MOVE, 144, 137, INPUTEVENT_MOVE, 340, 317);
+  mtinput(INPUTEVENT_CANCEL, 200, 197, INPUTEVENT_CANCEL, 290, 295);
+
+  // draw something else
+  s2(301, 402);
 }
 
 // similar to test0, but loads file test1_in.html

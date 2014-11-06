@@ -49,6 +49,7 @@ private:
   void doCommand(int cmd) { scribbleDoc->doCommand(cmd); }
   bool testCompareFiles(const char* f1, const char* f2, bool svgonly = false);
   void ie(Dim x, Dim y, Dim p, int src, int ev = 0, int mm = 0);
+  void mtinput(inputevent_t ev1, Dim x1, Dim y1, inputevent_t ev2, Dim x2, Dim y2);
   void ss(Dim offset);
   void s1(Dim xoffset, Dim yoffset);
   void s2(Dim xoffset, Dim yoffset);
