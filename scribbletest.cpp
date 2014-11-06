@@ -62,6 +62,9 @@ ScribbleTest::ScribbleTest(const QString& path)
   scribbleArea->screenRect = screenRect;
   scribbleArea->doPaintEvent(screenPaint);  // ensure that ScribbleView::imgPaint is inited
   //scribbleArea->setGeometry(Painter::rectToQRect(screenRect));
+  swbXML.append_child("swb");
+  swbXML.first_child().append_attribute("token").set_value("SCRIBBLE_SYNC_TEST");
+  swbXML.first_child().append_attribute("name");
 }
 
 ScribbleTest::ScribbleTest(ScribbleDoc* sd, BookmarkView* bv, ScribbleMode* sm)
@@ -99,9 +102,20 @@ void ScribbleTest::startSyncTest(int testnum)
 {
   syncTestNum = testnum;
   scribbleDoc->newDocument();
-  scribbleDoc->openSharedDoc(QSTRINGCHAR("testdoc" + QString::number(testnum)), "SCRIBBLE_SYNC_TEST", false);
+  swbXML.first_child().attribute("name").set_value(fstring("testdoc%d", testnum).c_str());
+  scribbleDoc->openSharedDoc(scribbleConfig->String("syncServer"), swbXML.first_child(), false);
   QObject::connect(scribbleDoc->scribbleSync, SIGNAL(userMessage(QString,int)), this, SLOT(syncSlaveMsg(QString,int)));
   waitForSyncDone = true;
+}
+
+void ScribbleTest::checkStrokeMap(ScribbleDoc* doc, const char* msg)
+{
+  int n = 0;
+  for(unsigned int pp = 0; pp < doc->document->pages.size(); pp++)
+    n += doc->document->pages[pp]->layer0->count();
+  int m = doc->scribbleSync->strokemap.size();
+  if(n != m)
+    qDebug("%s - strokemap count incorrect: %d strokes in document, %d strokes in strokemap", msg, n, m);
 }
 
 // wait on disconnect message to save and check slave document and advance to next test
@@ -115,6 +129,8 @@ void ScribbleTest::syncSlaveMsg(QString msg, int level)
   if(syncTestNum == 5)
     scribbleDoc->cfg->set("saveRuleLines", true);
 
+  // check strokemap count
+  checkStrokeMap(scribbleDoc, "slave (testuser2)");
   // write output file
   Element::SVG_NO_TIMESTAMP = true;
   QString basefile = outPath + "/test/test" + QString::number(syncTestNum);
@@ -207,7 +223,8 @@ void ScribbleTest::runAll(bool runsynctest)
       if(ii >= totaltests)
         break;
       // create whiteboard
-      scribbleDoc->openSharedDoc(QSTRINGCHAR("testdoc" + QString::number(ii)), "SCRIBBLE_SYNC_TEST", true);
+      swbXML.first_child().attribute("name").set_value(fstring("testdoc%d", ii).c_str());
+      scribbleDoc->openSharedDoc(scribbleConfig->String("syncServer"), swbXML.first_child(), true);
       // wait until we connect
       while(!scribbleDoc->scribbleSync->isSyncActive())
         QApplication::processEvents();
@@ -224,8 +241,11 @@ void ScribbleTest::runAll(bool runsynctest)
     (this->*tests[ii])();
 
     // when running sync test, slave writes output
-    if(syncSlave)
+    if(syncSlave) {
+      // check strokemap count
+      checkStrokeMap(scribbleDoc, "master (testuser1)");
       continue;
+    }
 
     scribbleArea->doPaintEvent(screenPaint); //, screenRect);
     // We have looked the png output in ages, so stop generating for now
@@ -619,6 +639,10 @@ void ScribbleTest::test4()
   doCommand(ID_SELALL);
   doCommand(ID_COPYSEL);
   doCommand(ID_DELPAGE);
+  undo();
+  // delete strokes from page, then undo that - added in response to SWB bug
+  doCommand(ID_SELALL);
+  doCommand(ID_DELSEL);
   undo();
 }
 
