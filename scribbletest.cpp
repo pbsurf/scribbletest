@@ -677,6 +677,8 @@ void ScribbleTest::test3()
   undo();
   undo();
   ss(80);
+  // none of the tests actually covered pasted strokes - there was a SWB bug
+  doCommand(ID_PASTE);
 }
 
 // test deletion of page with active selection
