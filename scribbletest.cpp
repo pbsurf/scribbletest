@@ -24,8 +24,6 @@ ScribbleTest::ScribbleTest(const QString& path)
 {
   scribbleConfig = new ScribbleConfig();
   scribbleConfig->set("singleFile", true);
-  // don't write out rule lines - they just clutter the output
-  scribbleConfig->set("saveRuleLines", false);
   // don't use panBorder
   scribbleConfig->set("panFromEdge", false);
   // disable input smoothing
@@ -124,10 +122,6 @@ void ScribbleTest::syncSlaveMsg(QString msg, int level)
 {
   if(!msg.contains("testuser1 disconnected"))
     return;
-
-  // test specific hacks
-  if(syncTestNum == 5)
-    scribbleDoc->cfg->set("saveRuleLines", true);
 
   // check strokemap count
   checkStrokeMap(scribbleDoc, "slave (testuser2)");
@@ -701,8 +695,6 @@ void ScribbleTest::test4()
 // test setting page properties and growing page
 void ScribbleTest::test5()
 {
-  // write out rule lines for this test
-  scribbleArea->cfg->set("saveRuleLines", true);
   PageProperties props(600, 800, 30, 30, 30, 0xFFFFFF00, 0x7F0000FF);
   ss(0);
   ss(10);
