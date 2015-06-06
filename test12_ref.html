@@ -2,11 +2,30 @@
   'http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd'>
 <html xmlns="http://www.w3.org/1999/xhtml">
  <head>
-  <title>Handwritten Document</title>
+  <title>test12_out</title>
   <script type="text/writeconfig">
+   <int name="docFormatVersion" value="1" />
    <int name="pageNum" value="0" />
+   <int name="savePrompt" value="1" />
+   <int name="singleFile" value="1" />
    <float name="xOffset" value="0" />
    <float name="yOffset" value="0" />
+   <ruling name="default">
+    <g class="ruleline">
+     <g class="rulepattern" shape-rendering="crispEdges">
+      <pattern id="pattern0" class="yruling" x="0.000" y="0.000" width="0.000" height="40.000" patternUnits="userSpaceOnUse">
+       <path vector-effect="non-scaling-stroke" fill="none" stroke="#000000" stroke-opacity="0.000" stroke-width="1.000" d="M0.000 40.000 L 65535.000 40.000" />
+      </pattern>
+      <rect x="0.000" y="0.000" width="0.000" height="0.000" fill="url(#pattern0)" />
+     </g>
+     <g class="rulepattern" shape-rendering="crispEdges">
+      <pattern id="pattern1" class="xmargin" x="100.000" y="0.000" width="0.000" height="0.000" patternUnits="userSpaceOnUse">
+       <path vector-effect="non-scaling-stroke" fill="none" stroke="#FF0000" stroke-width="1.000" d="M0.000 0.000 L 0.000 65535.000" />
+      </pattern>
+      <rect x="100.000" y="0.000" width="-100.000" height="0.000" fill="url(#pattern1)" />
+     </g>
+    </g>
+   </ruling>
   </script>
  </head>
  <body>
@@ -14,11 +33,25 @@
   <img id='thumbnail' style='display:none;' src='data:image/png;base64,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QtCQQtCQQtCQwnASpDCcBCkcOSCFoCGFoCGFoCGFoCGFoCGFoCGFoCGFoCGFoCGFoCGF4SRIYTgJUjhyQApBQwpBQwpBQwpBQwpBQwpBQwpBQwpBQwpBQwqzHJDCLAekcOSAFIKGFIKGFIKGFIKGFIKGFIKGFIKGFIKGFIKGFIKGFIaTIIXhJEjhyAEpBA0pBA0pBA0pBA0pBA0pBA0pBA0pBA0pBA0pBA0pDCdBCsNJkMKRA1IIGlIIGlIIGlIIGlIIGlIIGlIIGlIIGlIIGlIIGlIYToIUhpMghSMHpBA0pBA0pBA0pBA0pBA0pBA0pBA0pBA0pBA0pBA0pDCcBCkMJ0EKRw5IIWhIIWhIIWhIIWhIIWhIIWhIIWhIIWhIIWhIYZYDUpjlgBSOHJBC0JBC0JBC0JBC0JBC0JBC0JBC0JBC0JBC0JBC0JDCcBKkMJwEKRw5IIWgIYWgIYWgIYWgIYWgIYWgIYWgIYWgIYWgIYWgIYXhJEhhOAlSOHJACkFDCkFDCkFDCkFDCkFDCkFDCkFDCkFDCkFDCkFDCsNJkMJwEqRw5IAUgoYUgoYUgoYUgoYUgoYUgoYUgoYUgoYUgoYUgoYUhpMgheEkSOHIASkEDSkEDSkEDSkEDSkEDSkEDSkEDSkEDSkEDSnMckAKsxyQwpEDUggaUggaUggaUggaUggaUggaUggaUggaUggaUggaUhhOghSGkyCFIwekEDSkEDSkEDSkEDSkEDSkEDSkEDSkEDSkEDSkEDSkMJwEKQwnQQpHDkghaEghaEghaEghaEghaEghaEghaEghaEghaEghaEhhOAlSGE6CFI4ckELQkELQkELQkELQkELQkELQkELQkELQkELQkELQkMJwEqQwnAQpHDkghaAhhaAhhaAhhaAhhaAhxXHw4MF47wGwDa/QkELQkELQkELQkELQkELQkELQkELQkELQkELQkELQkELQkELQkELQkELQkELQkELQkELQkELQkELQkELQkELQkELQkELQkELQkELQkELQkELQkELQkELQkELQkELQkELQkELQkELQkELQkELQkELQkELQkELQkELQkELQkELQkELQkELQkELQkELQkELQkELQkELQkELQkELQkELQkELQkELQkELQkELQkELQkELQkELQkELQkELQkELQkELQkELQkELQkELQkELQkELQkELQkELQkPIvubSUmf9dCQQAAAAASUVORK5CYII='/>
 
 <svg width='768px' height='1024px' xmlns='http://www.w3.org/2000/svg' xmlns:xlink='http://www.w3.org/1999/xlink'>
-<defs> <style type='text/css'><![CDATA[ 
+<defs> <style type='text/css'><![CDATA[
   path { stroke-linecap: round; stroke-linejoin: round; }
-  .ruleline { shape-rendering: crispEdges; }
 ]]></style> </defs>
 <g id='page_1' width='768.000' height='1024.000' xruling='0.000' yruling='40.000' marginLeft='100.000' papercolor='#FFFFFF' rulecolor='#FF0000FF'>
+<rect id='pagebg' width='768.000' height='1024.000' fill='#FFFFFF'/>
+<g class='ruleline'>
+<g class='rulepattern' shape-rendering='crispEdges'>
+<pattern id='pattern0' class='yruling' x='0.000' y='0.000' width='768.000' height='40.000' patternUnits='userSpaceOnUse'>
+<path vector-effect='non-scaling-stroke' fill='none' stroke='#0000FF' stroke-width='1.000' d='M0.000 40.000 L 65535.000 40.000'/>
+</pattern>
+<rect x='0.000' y='0.000' width='768.000' height='1024.000' fill='url(#pattern0)'/>
+</g>
+<g class='rulepattern' shape-rendering='crispEdges'>
+<pattern id='pattern1' class='xmargin' x='100.000' y='0.000' width='668.000' height='1024.000' patternUnits='userSpaceOnUse'>
+<path vector-effect='non-scaling-stroke' fill='none' stroke='#FF0000' stroke-width='1.000' d='M0.000 0.000 L 0.000 65535.000'/>
+</pattern>
+<rect x='100.000' y='0.000' width='668.000' height='1024.000' fill='url(#pattern1)'/>
+</g>
+</g>
 <image __comx='151.550' __comy='79.106' x='112.622' y='40.178' width='77.856' height='77.856' xlink:href='data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAYAAABXAvmHAAAACXBIWXMAAA7EAAAOxAGVKw4bAAAB9UlEQVRoge3YMY+MQRzH8c/duivOSQiJREEhcUpiGyovQKXUiEjoVFRUXIUoFCQ0JCq8BvECkKhci0IkohJh9+wq5jkuu88+O7vzuGcT800mszub/c385pmZZ/5/Mpn/m7mStts4iPURv9fFNtzFi1SRQS5jDd/RU7+JHhawHTtTxcoMwGGcxHvMp3YyQBdncFEwk8QoA/AyVbyCL2jVIVT37MZSy+BpzkBtZANNkw00TTbQNNlA02QDTVNm4HkNuntxFu0atCoZ9QReJ+p+xlXcxxXsTtQbSdUS2peofUi4rp/HY5zyDyK8cXvgWKL+UXzDAdzEnaI9OZDZIGYTpy6nNn4Kkdjxom1LDcCbxH7a6ONHos4Q4wy0sFyUtaJMyxEhkK+Vqpi4hU94UnzvF/U1rE7Z39OiHjVxC8JGXxe5zKoMdITj8Ebs6CK4VdRdwyfSEu5hB67jbYxgmYG+MPvn8NXfmS/jYUwnJZwwvB/msSLkipZjhcoMLGEXLhmfPVgV3rqTcgEfsDjQ3ilK9ClVZuAR9uDXBIN5ENvhJvYLCbQkygw8SxWdgJRTDbN1G+1s+tyN/VPVKbTVrAgT2heW12D6cU54o3800DhLvCrqnuHM+CLeCYnhP8zSEmKK+GHWnsAGp4X719gllMlkMplMpkl+A1kfSQPk30ELAAAAAElFTkSuQmCC'/>
 <path __comx='255.440' __comy='269.118' fill='none' stroke='#000000' stroke-width='1.000' d='M271.579 242.352 L 239.301 266.520 271.255 290.850'/>
 <path __comx='336.246' __comy='269.118' fill='#000000' stroke='none' stroke-width='1.946' d='M352.382 246.820 L 319.516 271.382 351.913 296.297 352.797 295.135 321.287 271.389 352.977 247.615 Z'/>

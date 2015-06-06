@@ -2,19 +2,38 @@
   'http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd'>
 <html xmlns="http://www.w3.org/1999/xhtml">
  <head>
-  <title>Handwritten Document</title>
+  <title>test5_out</title>
   <script type="text/writeconfig">
+   <int name="docFormatVersion" value="1" />
    <int name="pageColor" value="-256" />
    <int name="pageNum" value="1" />
-   <int name="ruleColor" value="2130706687" />
-   <int name="saveRuleLines" value="1" />
-   <float name="marginLeft" value="30" />
+   <int name="savePrompt" value="1" />
    <float name="pageHeight" value="800" />
    <float name="pageWidth" value="600" />
    <float name="xOffset" value="-10" />
-   <float name="xRuling" value="30" />
    <float name="yOffset" value="-10" />
-   <float name="yRuling" value="30" />
+   <ruling name="default">
+    <g class="ruleline">
+     <g class="rulepattern" shape-rendering="crispEdges">
+      <pattern id="pattern0" class="yruling" x="0.000" y="0.000" width="600.000" height="30.000" patternUnits="userSpaceOnUse">
+       <path vector-effect="non-scaling-stroke" fill="none" stroke="#0000FF" stroke-opacity="0.498" stroke-width="1.000" d="M0.000 30.000 L 65535.000 30.000" />
+      </pattern>
+      <rect x="0.000" y="0.000" width="600.000" height="800.000" fill="url(#pattern0)" />
+     </g>
+     <g class="rulepattern" shape-rendering="crispEdges">
+      <pattern id="pattern1" class="xruling" x="0.000" y="0.000" width="30.000" height="800.000" patternUnits="userSpaceOnUse">
+       <path vector-effect="non-scaling-stroke" fill="none" stroke="#0000FF" stroke-opacity="0.498" stroke-width="1.000" d="M30.000 0.000 L 30.000 65535.000" />
+      </pattern>
+      <rect x="0.000" y="0.000" width="600.000" height="800.000" fill="url(#pattern1)" />
+     </g>
+     <g class="rulepattern" shape-rendering="crispEdges">
+      <pattern id="pattern2" class="xmargin" x="30.000" y="0.000" width="570.000" height="800.000" patternUnits="userSpaceOnUse">
+       <path vector-effect="non-scaling-stroke" fill="none" stroke="#FF0000" stroke-width="1.000" d="M0.000 0.000 L 0.000 65535.000" />
+      </pattern>
+      <rect x="30.000" y="0.000" width="570.000" height="800.000" fill="url(#pattern2)" />
+     </g>
+    </g>
+   </ruling>
   </script>
  </head>
  <body>
@@ -22,122 +41,62 @@
   <img id='thumbnail' style='display:none;' src='data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAPAAAAGQCAIAAAAftHorAAAACXBIWXMAAA4QAAAOEAH50FA5AAAGlElEQVR4nO3aMWvVZxyG4TcaLIaSilHEwcElLhmCOOQDODi4uYiQ1S+mzi4GAm5ODoK7e6Yk2kJQW5B0iFAJ1MRgPP/cXBddWh7MGe6Gt6e/ubt37w6oODfrDwA/k6BJETQpgiZF0KQImhRBkyJoUgRNy/7+0X99eH3pyM3OzpKNzcw3fkOTImhSBE2KoEkRNCmCJkXQpAiaFEGTImhSBE3K/O7u0pGjvb9+/7J7/vub9+8vH/nn2Nic9mZ+aWn3yNH5P75cWvrzyNlx/igbm1PdeHKQImhSBE2KoEkRNCmCJkXQpAiaFEGTImhS3HLYpDZuOWxSG08OUgRNiqBJETQpgiZF0KQImhRBkyJoUgRNilsOm9TGLYdNauPJQYqgSRE0KYImRdCkCJoUQZMiaFIETYqgSXHLYZPauOWwSW08OUgRNCmCJkXQpAiaFEGTImhSBE2KoEkRNClTueXY3d2fm9u/fPnc1G4DbM7WZhK3HFtb4927sbc3VlbG9evTug2wOVub2T85PnwYr1+P+/fHw4djb2+8fPnPrD8RZ9j8bH/858/jxYuxvv71b9fWxuLi/Pb2uHp1ph+LM2vGv6GfPv2v5gPXrp1TMyc2y6CfPRuPHs3w5xM0s6CfPx/37o2FhVn9fJpmE/Tm5rhzZywd/YUh/JgZBP3q1bh5c9y4cazx9vbY2TnlD0TIr/6W482bsbg4bt061nhra7x9+/X76ZWVU/5kJPzS39CfPu0vL4/V1WOND30/vbFxyh+OhF8a9MWLc4uLx1oefD/94MHXv11bG7dvj+3t0/toREzlluPQ5smTv9fXf9v95n9zXrgwxhgH/2Rq9wM209lM4pbjkM3N3cePx8LC3i/4WTaxzexvOQ7Z2PjH99Oc2LSC3twcq6vzvp/mxGZ8nPStg++nr1yZ1r9jnC1TqeeHvp+G/zOJ39AfP47l5XHMb/TgOyYRtP8E5GeZypMDfgpBkyJoUgRNykRvOWxsTraZ4i2Hjc2JN54cpAiaFEGTImhSBE2KoEkRNCmCJkXQpAiaFLccNqmNWw6b1MaTgxRBkyJoUgRNiqBJETQpgiZF0KQImhRBk+KWwya1ccthk9p4cpAiaFIETYqgSRE0KYImRdCkCJoUQZMiaFLcctikNm45bFIbTw5SBE2KoEkRNCmCJkXQpAiaFEGTImhSBE2KWw6b1MYth01q48lBiqBJETQpgiZF0KQImhRBkyJoUgRNiqBJccthk9q45bBJbTw5SBE0KYImRdCkCJoUQZMiaFIETYqgSRE0KW45bFIbtxw2qY0nBymCJkXQpAiaFEGTImhSBE2KoEkRNCmCJsUth01q45bDJrXx5CBF0KQImhRBkyJoUgRNiqBJETQpgiZF0KS45bBJbdxy2KQ2nhykCJoUQZMiaFIETYqgSRE0KYImRdCkCJoUtxw2qY1bDpvUxpODFEGTImhSBE2KoEkRNCmCJkXQpAiaFEGT4pbDJrVxy2GT2nhykCJoUgRNiqBJETQpgiZF0KQImhRBkyJoUtxy2KQ2bjlsUhtPDlIETYqgSRE0KYImRdCkCJoUQZMiaFIETYpbDpvUxi2HTWrjyUGKoEkRNCmCJkXQpAiaFEGTImhSBE2KoElxy2GT2rjlsEltPDlIETQpgiZF0KQImhRBkyJoUgRNiqBJETQpbjlsUhu3HDapjScHKYImRdCkCJoUQZMiaFIETYqgSRE0KYImxS2HTWrjlsMmtfHkIEXQpAiaFEGTImhSBE2KoEkRNCmCJkXQpLjlsElt3HLYpDaeHKQImhRBkyJoUgRNiqBJETQpgiZF0KQImhS3HDapjVsOm9TGk4MUQZMiaFIETYqgSRE0KYImRdCkCJoUQZPilsMmtXHLYZPaeHKQImhSBE2KoEkRNCmCJkXQpAiaFEGTImhS3HLYpDZuOWxSG08OUgRNiqBJETQpgiZF0KQImhRBkyJoUgRNilsOm9TGLYdNauPJQYqgSRE0KYImRdCkCJoUQZMiaFIETYqgSXHLYZPauOWwSW08OUgRNCmCJkXQpAiaFEGTImhSBE2KoEkRNCluOWxSG7ccNqmNJwcpgiZF0KQImhRBkyJoUgRNiqBJETQpgibFLYdNauOWwya18eQgRdCkCJoUQZMiaFIETYqgSRE0KYImRdCkuOWwSW3cctikNp4cpAiaFEGTImhSBE2KoEkRNCmCJkXQpAiaFLccNqmNWw6b1MaTgxRBkyJoUgRNyr/U0hs5ln+UGQAAAABJRU5ErkJggg=='/>
 
 <svg width='600px' height='800px' xmlns='http://www.w3.org/2000/svg' xmlns:xlink='http://www.w3.org/1999/xlink'>
-<defs> <style type='text/css'><![CDATA[ 
+<defs> <style type='text/css'><![CDATA[
   path { stroke-linecap: round; stroke-linejoin: round; }
-  .ruleline { shape-rendering: crispEdges; }
 ]]></style> </defs>
 <g id='page_1' width='600.000' height='800.000' xruling='30.000' yruling='30.000' marginLeft='30.000' papercolor='#FFFF00' rulecolor='#7F0000FF'>
-<rect width='600px' height='800px' fill='#FFFF00'/>
-<path class='ruleline' fill='none' stroke='#0000FF' stroke-opacity='0.498' stroke-width='1.000' d='M0.000 30.000 L 600.000 30.000'/>
-<path class='ruleline' fill='none' stroke='#0000FF' stroke-opacity='0.498' stroke-width='1.000' d='M0.000 60.000 L 600.000 60.000'/>
-<path class='ruleline' fill='none' stroke='#0000FF' stroke-opacity='0.498' stroke-width='1.000' d='M0.000 90.000 L 600.000 90.000'/>
-<path class='ruleline' fill='none' stroke='#0000FF' stroke-opacity='0.498' stroke-width='1.000' d='M0.000 120.000 L 600.000 120.000'/>
-<path class='ruleline' fill='none' stroke='#0000FF' stroke-opacity='0.498' stroke-width='1.000' d='M0.000 150.000 L 600.000 150.000'/>
-<path class='ruleline' fill='none' stroke='#0000FF' stroke-opacity='0.498' stroke-width='1.000' d='M0.000 180.000 L 600.000 180.000'/>
-<path class='ruleline' fill='none' stroke='#0000FF' stroke-opacity='0.498' stroke-width='1.000' d='M0.000 210.000 L 600.000 210.000'/>
-<path class='ruleline' fill='none' stroke='#0000FF' stroke-opacity='0.498' stroke-width='1.000' d='M0.000 240.000 L 600.000 240.000'/>
-<path class='ruleline' fill='none' stroke='#0000FF' stroke-opacity='0.498' stroke-width='1.000' d='M0.000 270.000 L 600.000 270.000'/>
-<path class='ruleline' fill='none' stroke='#0000FF' stroke-opacity='0.498' stroke-width='1.000' d='M0.000 300.000 L 600.000 300.000'/>
-<path class='ruleline' fill='none' stroke='#0000FF' stroke-opacity='0.498' stroke-width='1.000' d='M0.000 330.000 L 600.000 330.000'/>
-<path class='ruleline' fill='none' stroke='#0000FF' stroke-opacity='0.498' stroke-width='1.000' d='M0.000 360.000 L 600.000 360.000'/>
-<path class='ruleline' fill='none' stroke='#0000FF' stroke-opacity='0.498' stroke-width='1.000' d='M0.000 390.000 L 600.000 390.000'/>
-<path class='ruleline' fill='none' stroke='#0000FF' stroke-opacity='0.498' stroke-width='1.000' d='M0.000 420.000 L 600.000 420.000'/>
-<path class='ruleline' fill='none' stroke='#0000FF' stroke-opacity='0.498' stroke-width='1.000' d='M0.000 450.000 L 600.000 450.000'/>
-<path class='ruleline' fill='none' stroke='#0000FF' stroke-opacity='0.498' stroke-width='1.000' d='M0.000 480.000 L 600.000 480.000'/>
-<path class='ruleline' fill='none' stroke='#0000FF' stroke-opacity='0.498' stroke-width='1.000' d='M0.000 510.000 L 600.000 510.000'/>
-<path class='ruleline' fill='none' stroke='#0000FF' stroke-opacity='0.498' stroke-width='1.000' d='M0.000 540.000 L 600.000 540.000'/>
-<path class='ruleline' fill='none' stroke='#0000FF' stroke-opacity='0.498' stroke-width='1.000' d='M0.000 570.000 L 600.000 570.000'/>
-<path class='ruleline' fill='none' stroke='#0000FF' stroke-opacity='0.498' stroke-width='1.000' d='M0.000 600.000 L 600.000 600.000'/>
-<path class='ruleline' fill='none' stroke='#0000FF' stroke-opacity='0.498' stroke-width='1.000' d='M0.000 630.000 L 600.000 630.000'/>
-<path class='ruleline' fill='none' stroke='#0000FF' stroke-opacity='0.498' stroke-width='1.000' d='M0.000 660.000 L 600.000 660.000'/>
-<path class='ruleline' fill='none' stroke='#0000FF' stroke-opacity='0.498' stroke-width='1.000' d='M0.000 690.000 L 600.000 690.000'/>
-<path class='ruleline' fill='none' stroke='#0000FF' stroke-opacity='0.498' stroke-width='1.000' d='M0.000 720.000 L 600.000 720.000'/>
-<path class='ruleline' fill='none' stroke='#0000FF' stroke-opacity='0.498' stroke-width='1.000' d='M0.000 750.000 L 600.000 750.000'/>
-<path class='ruleline' fill='none' stroke='#0000FF' stroke-opacity='0.498' stroke-width='1.000' d='M0.000 780.000 L 600.000 780.000'/>
-<path class='ruleline' fill='none' stroke='#0000FF' stroke-opacity='0.498' stroke-width='1.000' d='M30.000 0.000 L 30.000 800.000'/>
-<path class='ruleline' fill='none' stroke='#0000FF' stroke-opacity='0.498' stroke-width='1.000' d='M60.000 0.000 L 60.000 800.000'/>
-<path class='ruleline' fill='none' stroke='#0000FF' stroke-opacity='0.498' stroke-width='1.000' d='M90.000 0.000 L 90.000 800.000'/>
-<path class='ruleline' fill='none' stroke='#0000FF' stroke-opacity='0.498' stroke-width='1.000' d='M120.000 0.000 L 120.000 800.000'/>
-<path class='ruleline' fill='none' stroke='#0000FF' stroke-opacity='0.498' stroke-width='1.000' d='M150.000 0.000 L 150.000 800.000'/>
-<path class='ruleline' fill='none' stroke='#0000FF' stroke-opacity='0.498' stroke-width='1.000' d='M180.000 0.000 L 180.000 800.000'/>
-<path class='ruleline' fill='none' stroke='#0000FF' stroke-opacity='0.498' stroke-width='1.000' d='M210.000 0.000 L 210.000 800.000'/>
-<path class='ruleline' fill='none' stroke='#0000FF' stroke-opacity='0.498' stroke-width='1.000' d='M240.000 0.000 L 240.000 800.000'/>
-<path class='ruleline' fill='none' stroke='#0000FF' stroke-opacity='0.498' stroke-width='1.000' d='M270.000 0.000 L 270.000 800.000'/>
-<path class='ruleline' fill='none' stroke='#0000FF' stroke-opacity='0.498' stroke-width='1.000' d='M300.000 0.000 L 300.000 800.000'/>
-<path class='ruleline' fill='none' stroke='#0000FF' stroke-opacity='0.498' stroke-width='1.000' d='M330.000 0.000 L 330.000 800.000'/>
-<path class='ruleline' fill='none' stroke='#0000FF' stroke-opacity='0.498' stroke-width='1.000' d='M360.000 0.000 L 360.000 800.000'/>
-<path class='ruleline' fill='none' stroke='#0000FF' stroke-opacity='0.498' stroke-width='1.000' d='M390.000 0.000 L 390.000 800.000'/>
-<path class='ruleline' fill='none' stroke='#0000FF' stroke-opacity='0.498' stroke-width='1.000' d='M420.000 0.000 L 420.000 800.000'/>
-<path class='ruleline' fill='none' stroke='#0000FF' stroke-opacity='0.498' stroke-width='1.000' d='M450.000 0.000 L 450.000 800.000'/>
-<path class='ruleline' fill='none' stroke='#0000FF' stroke-opacity='0.498' stroke-width='1.000' d='M480.000 0.000 L 480.000 800.000'/>
-<path class='ruleline' fill='none' stroke='#0000FF' stroke-opacity='0.498' stroke-width='1.000' d='M510.000 0.000 L 510.000 800.000'/>
-<path class='ruleline' fill='none' stroke='#0000FF' stroke-opacity='0.498' stroke-width='1.000' d='M540.000 0.000 L 540.000 800.000'/>
-<path class='ruleline' fill='none' stroke='#0000FF' stroke-opacity='0.498' stroke-width='1.000' d='M570.000 0.000 L 570.000 800.000'/>
-<path class='ruleline' fill='none' stroke='#FF0000' stroke-width='1.000' d='M30.000 0.000 L 30.000 800.000'/>
+<rect id='pagebg' width='600.000' height='800.000' fill='#FFFF00'/>
+<g class='ruleline'>
+<g class='rulepattern' shape-rendering='crispEdges'>
+<pattern id='pattern0' class='yruling' x='0.000' y='0.000' width='600.000' height='30.000' patternUnits='userSpaceOnUse'>
+<path vector-effect='non-scaling-stroke' fill='none' stroke='#0000FF' stroke-opacity='0.498' stroke-width='1.000' d='M0.000 30.000 L 65535.000 30.000'/>
+</pattern>
+<rect x='0.000' y='0.000' width='600.000' height='800.000' fill='url(#pattern0)'/>
+</g>
+<g class='rulepattern' shape-rendering='crispEdges'>
+<pattern id='pattern1' class='xruling' x='0.000' y='0.000' width='30.000' height='800.000' patternUnits='userSpaceOnUse'>
+<path vector-effect='non-scaling-stroke' fill='none' stroke='#0000FF' stroke-opacity='0.498' stroke-width='1.000' d='M30.000 0.000 L 30.000 65535.000'/>
+</pattern>
+<rect x='0.000' y='0.000' width='600.000' height='800.000' fill='url(#pattern1)'/>
+</g>
+<g class='rulepattern' shape-rendering='crispEdges'>
+<pattern id='pattern2' class='xmargin' x='30.000' y='0.000' width='570.000' height='800.000' patternUnits='userSpaceOnUse'>
+<path vector-effect='non-scaling-stroke' fill='none' stroke='#FF0000' stroke-width='1.000' d='M0.000 0.000 L 0.000 65535.000'/>
+</pattern>
+<rect x='30.000' y='0.000' width='570.000' height='800.000' fill='url(#pattern2)'/>
+</g>
+</g>
 <path __comx='108.100' __comy='162.467' fill='none' stroke='#000000' stroke-width='1.000' d='M94.400 174.400 L 114.500 152.200 121.800 157.300'/>
 <path __comx='118.100' __comy='172.467' fill='none' stroke='#000000' stroke-width='1.000' d='M104.400 184.400 L 124.500 162.200 131.800 167.300'/>
 <path __comx='128.100' __comy='182.467' fill='none' stroke='#000000' stroke-width='1.000' d='M114.400 194.400 L 134.500 172.200 141.800 177.300'/>
 </g>
 </svg>
 <svg width='600px' height='975px' xmlns='http://www.w3.org/2000/svg' xmlns:xlink='http://www.w3.org/1999/xlink'>
-<defs> <style type='text/css'><![CDATA[ 
+<defs> <style type='text/css'><![CDATA[
   path { stroke-linecap: round; stroke-linejoin: round; }
-  .ruleline { shape-rendering: crispEdges; }
 ]]></style> </defs>
 <g id='page_1' width='600.000' height='975.000' xruling='30.000' yruling='30.000' marginLeft='30.000' papercolor='#FFFF00' rulecolor='#7F0000FF'>
-<rect width='600px' height='975px' fill='#FFFF00'/>
-<path class='ruleline' fill='none' stroke='#0000FF' stroke-opacity='0.498' stroke-width='1.000' d='M0.000 30.000 L 600.000 30.000'/>
-<path class='ruleline' fill='none' stroke='#0000FF' stroke-opacity='0.498' stroke-width='1.000' d='M0.000 60.000 L 600.000 60.000'/>
-<path class='ruleline' fill='none' stroke='#0000FF' stroke-opacity='0.498' stroke-width='1.000' d='M0.000 90.000 L 600.000 90.000'/>
-<path class='ruleline' fill='none' stroke='#0000FF' stroke-opacity='0.498' stroke-width='1.000' d='M0.000 120.000 L 600.000 120.000'/>
-<path class='ruleline' fill='none' stroke='#0000FF' stroke-opacity='0.498' stroke-width='1.000' d='M0.000 150.000 L 600.000 150.000'/>
-<path class='ruleline' fill='none' stroke='#0000FF' stroke-opacity='0.498' stroke-width='1.000' d='M0.000 180.000 L 600.000 180.000'/>
-<path class='ruleline' fill='none' stroke='#0000FF' stroke-opacity='0.498' stroke-width='1.000' d='M0.000 210.000 L 600.000 210.000'/>
-<path class='ruleline' fill='none' stroke='#0000FF' stroke-opacity='0.498' stroke-width='1.000' d='M0.000 240.000 L 600.000 240.000'/>
-<path class='ruleline' fill='none' stroke='#0000FF' stroke-opacity='0.498' stroke-width='1.000' d='M0.000 270.000 L 600.000 270.000'/>
-<path class='ruleline' fill='none' stroke='#0000FF' stroke-opacity='0.498' stroke-width='1.000' d='M0.000 300.000 L 600.000 300.000'/>
-<path class='ruleline' fill='none' stroke='#0000FF' stroke-opacity='0.498' stroke-width='1.000' d='M0.000 330.000 L 600.000 330.000'/>
-<path class='ruleline' fill='none' stroke='#0000FF' stroke-opacity='0.498' stroke-width='1.000' d='M0.000 360.000 L 600.000 360.000'/>
-<path class='ruleline' fill='none' stroke='#0000FF' stroke-opacity='0.498' stroke-width='1.000' d='M0.000 390.000 L 600.000 390.000'/>
-<path class='ruleline' fill='none' stroke='#0000FF' stroke-opacity='0.498' stroke-width='1.000' d='M0.000 420.000 L 600.000 420.000'/>
-<path class='ruleline' fill='none' stroke='#0000FF' stroke-opacity='0.498' stroke-width='1.000' d='M0.000 450.000 L 600.000 450.000'/>
-<path class='ruleline' fill='none' stroke='#0000FF' stroke-opacity='0.498' stroke-width='1.000' d='M0.000 480.000 L 600.000 480.000'/>
-<path class='ruleline' fill='none' stroke='#0000FF' stroke-opacity='0.498' stroke-width='1.000' d='M0.000 510.000 L 600.000 510.000'/>
-<path class='ruleline' fill='none' stroke='#0000FF' stroke-opacity='0.498' stroke-width='1.000' d='M0.000 540.000 L 600.000 540.000'/>
-<path class='ruleline' fill='none' stroke='#0000FF' stroke-opacity='0.498' stroke-width='1.000' d='M0.000 570.000 L 600.000 570.000'/>
-<path class='ruleline' fill='none' stroke='#0000FF' stroke-opacity='0.498' stroke-width='1.000' d='M0.000 600.000 L 600.000 600.000'/>
-<path class='ruleline' fill='none' stroke='#0000FF' stroke-opacity='0.498' stroke-width='1.000' d='M0.000 630.000 L 600.000 630.000'/>
-<path class='ruleline' fill='none' stroke='#0000FF' stroke-opacity='0.498' stroke-width='1.000' d='M0.000 660.000 L 600.000 660.000'/>
-<path class='ruleline' fill='none' stroke='#0000FF' stroke-opacity='0.498' stroke-width='1.000' d='M0.000 690.000 L 600.000 690.000'/>
-<path class='ruleline' fill='none' stroke='#0000FF' stroke-opacity='0.498' stroke-width='1.000' d='M0.000 720.000 L 600.000 720.000'/>
-<path class='ruleline' fill='none' stroke='#0000FF' stroke-opacity='0.498' stroke-width='1.000' d='M0.000 750.000 L 600.000 750.000'/>
-<path class='ruleline' fill='none' stroke='#0000FF' stroke-opacity='0.498' stroke-width='1.000' d='M0.000 780.000 L 600.000 780.000'/>
-<path class='ruleline' fill='none' stroke='#0000FF' stroke-opacity='0.498' stroke-width='1.000' d='M0.000 810.000 L 600.000 810.000'/>
-<path class='ruleline' fill='none' stroke='#0000FF' stroke-opacity='0.498' stroke-width='1.000' d='M0.000 840.000 L 600.000 840.000'/>
-<path class='ruleline' fill='none' stroke='#0000FF' stroke-opacity='0.498' stroke-width='1.000' d='M0.000 870.000 L 600.000 870.000'/>
-<path class='ruleline' fill='none' stroke='#0000FF' stroke-opacity='0.498' stroke-width='1.000' d='M0.000 900.000 L 600.000 900.000'/>
-<path class='ruleline' fill='none' stroke='#0000FF' stroke-opacity='0.498' stroke-width='1.000' d='M0.000 930.000 L 600.000 930.000'/>
-<path class='ruleline' fill='none' stroke='#0000FF' stroke-opacity='0.498' stroke-width='1.000' d='M0.000 960.000 L 600.000 960.000'/>
-<path class='ruleline' fill='none' stroke='#0000FF' stroke-opacity='0.498' stroke-width='1.000' d='M30.000 0.000 L 30.000 975.000'/>
-<path class='ruleline' fill='none' stroke='#0000FF' stroke-opacity='0.498' stroke-width='1.000' d='M60.000 0.000 L 60.000 975.000'/>
-<path class='ruleline' fill='none' stroke='#0000FF' stroke-opacity='0.498' stroke-width='1.000' d='M90.000 0.000 L 90.000 975.000'/>
-<path class='ruleline' fill='none' stroke='#0000FF' stroke-opacity='0.498' stroke-width='1.000' d='M120.000 0.000 L 120.000 975.000'/>
-<path class='ruleline' fill='none' stroke='#0000FF' stroke-opacity='0.498' stroke-width='1.000' d='M150.000 0.000 L 150.000 975.000'/>
-<path class='ruleline' fill='none' stroke='#0000FF' stroke-opacity='0.498' stroke-width='1.000' d='M180.000 0.000 L 180.000 975.000'/>
-<path class='ruleline' fill='none' stroke='#0000FF' stroke-opacity='0.498' stroke-width='1.000' d='M210.000 0.000 L 210.000 975.000'/>
-<path class='ruleline' fill='none' stroke='#0000FF' stroke-opacity='0.498' stroke-width='1.000' d='M240.000 0.000 L 240.000 975.000'/>
-<path class='ruleline' fill='none' stroke='#0000FF' stroke-opacity='0.498' stroke-width='1.000' d='M270.000 0.000 L 270.000 975.000'/>
-<path class='ruleline' fill='none' stroke='#0000FF' stroke-opacity='0.498' stroke-width='1.000' d='M300.000 0.000 L 300.000 975.000'/>
-<path class='ruleline' fill='none' stroke='#0000FF' stroke-opacity='0.498' stroke-width='1.000' d='M330.000 0.000 L 330.000 975.000'/>
-<path class='ruleline' fill='none' stroke='#0000FF' stroke-opacity='0.498' stroke-width='1.000' d='M360.000 0.000 L 360.000 975.000'/>
-<path class='ruleline' fill='none' stroke='#0000FF' stroke-opacity='0.498' stroke-width='1.000' d='M390.000 0.000 L 390.000 975.000'/>
-<path class='ruleline' fill='none' stroke='#0000FF' stroke-opacity='0.498' stroke-width='1.000' d='M420.000 0.000 L 420.000 975.000'/>
-<path class='ruleline' fill='none' stroke='#0000FF' stroke-opacity='0.498' stroke-width='1.000' d='M450.000 0.000 L 450.000 975.000'/>
-<path class='ruleline' fill='none' stroke='#0000FF' stroke-opacity='0.498' stroke-width='1.000' d='M480.000 0.000 L 480.000 975.000'/>
-<path class='ruleline' fill='none' stroke='#0000FF' stroke-opacity='0.498' stroke-width='1.000' d='M510.000 0.000 L 510.000 975.000'/>
-<path class='ruleline' fill='none' stroke='#0000FF' stroke-opacity='0.498' stroke-width='1.000' d='M540.000 0.000 L 540.000 975.000'/>
-<path class='ruleline' fill='none' stroke='#0000FF' stroke-opacity='0.498' stroke-width='1.000' d='M570.000 0.000 L 570.000 975.000'/>
-<path class='ruleline' fill='none' stroke='#FF0000' stroke-width='1.000' d='M30.000 0.000 L 30.000 975.000'/>
+<rect id='pagebg' width='600.000' height='975.000' fill='#FFFF00'/>
+<g class='ruleline'>
+<g class='rulepattern' shape-rendering='crispEdges'>
+<pattern id='pattern0' class='yruling' x='0.000' y='0.000' width='600.000' height='30.000' patternUnits='userSpaceOnUse'>
+<path vector-effect='non-scaling-stroke' fill='none' stroke='#0000FF' stroke-opacity='0.498' stroke-width='1.000' d='M0.000 30.000 L 65535.000 30.000'/>
+</pattern>
+<rect x='0.000' y='0.000' width='600.000' height='975.000' fill='url(#pattern0)'/>
+</g>
+<g class='rulepattern' shape-rendering='crispEdges'>
+<pattern id='pattern1' class='xruling' x='0.000' y='0.000' width='30.000' height='975.000' patternUnits='userSpaceOnUse'>
+<path vector-effect='non-scaling-stroke' fill='none' stroke='#0000FF' stroke-opacity='0.498' stroke-width='1.000' d='M30.000 0.000 L 30.000 65535.000'/>
+</pattern>
+<rect x='0.000' y='0.000' width='600.000' height='975.000' fill='url(#pattern1)'/>
+</g>
+<g class='rulepattern' shape-rendering='crispEdges'>
+<pattern id='pattern2' class='xmargin' x='30.000' y='0.000' width='570.000' height='975.000' patternUnits='userSpaceOnUse'>
+<path vector-effect='non-scaling-stroke' fill='none' stroke='#FF0000' stroke-width='1.000' d='M0.000 0.000 L 0.000 65535.000'/>
+</pattern>
+<rect x='30.000' y='0.000' width='570.000' height='975.000' fill='url(#pattern2)'/>
+</g>
+</g>
 <path __comx='108.100' __comy='162.467' fill='none' stroke='#000000' stroke-width='1.000' d='M94.400 174.400 L 114.500 152.200 121.800 157.300'/>
 <path __comx='128.100' __comy='182.467' fill='none' stroke='#000000' stroke-width='1.000' d='M114.400 194.400 L 134.500 172.200 141.800 177.300'/>
 </g>

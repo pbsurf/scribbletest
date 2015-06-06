@@ -210,6 +210,8 @@ void ScribbleTest::runAll(bool runsynctest)
     scribbleMode->setRuled(true);
     scribbleMode->setMode(MODE_STROKE);
     scribbleDoc->setPen(ScribblePen(Painter::BLACK, 1, 0));
+    // prevent unintended updates while inspecting:
+    scribbleDoc->cfg->set("savePrompt", true);
 
     if(syncSlave) {
       // wait for slave to finish previous test

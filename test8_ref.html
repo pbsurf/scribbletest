@@ -2,30 +2,58 @@
   'http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd'>
 <html xmlns="http://www.w3.org/1999/xhtml">
  <head>
-  <title>Handwritten Document</title>
+  <title>test8_out</title>
   <script type="text/writeconfig">
+   <int name="docFormatVersion" value="1" />
    <int name="pageColor" value="-1" />
    <int name="pageNum" value="0" />
-   <int name="ruleColor" value="-16776961" />
-   <float name="marginLeft" value="100" />
+   <int name="savePrompt" value="1" />
    <float name="pageHeight" value="800" />
    <float name="pageWidth" value="700" />
    <float name="xOffset" value="0" />
-   <float name="xRuling" value="0" />
    <float name="yOffset" value="0" />
-   <float name="yRuling" value="40" />
+   <ruling name="default">
+    <g class="ruleline">
+     <g class="rulepattern" shape-rendering="crispEdges">
+      <pattern id="pattern0" class="yruling" x="0.000" y="0.000" width="700.000" height="40.000" patternUnits="userSpaceOnUse">
+       <path vector-effect="non-scaling-stroke" fill="none" stroke="#0000FF" stroke-width="1.000" d="M0.000 40.000 L 65535.000 40.000" />
+      </pattern>
+      <rect x="0.000" y="0.000" width="700.000" height="800.000" fill="url(#pattern0)" />
+     </g>
+     <g class="rulepattern" shape-rendering="crispEdges">
+      <pattern id="pattern1" class="xmargin" x="100.000" y="0.000" width="600.000" height="800.000" patternUnits="userSpaceOnUse">
+       <path vector-effect="non-scaling-stroke" fill="none" stroke="#FF0000" stroke-width="1.000" d="M0.000 0.000 L 0.000 65535.000" />
+      </pattern>
+      <rect x="100.000" y="0.000" width="600.000" height="800.000" fill="url(#pattern1)" />
+     </g>
+    </g>
+   </ruling>
   </script>
  </head>
  <body>
   
-  <img id='thumbnail' style='display:none;' src='data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAPAAAAGQCAIAAAAftHorAAAACXBIWXMAAA4QAAAOEAH50FA5AAAJJElEQVR4nO3dXUvU6xqA8ZntUFpmLxhourTs1RglAkWKLM0wjDqMvl3ndSJ4UGbNiFRYCRUhRYHUTC+mBWX5lsrsA2HvDjdr93+eWddcvw+wnnsNF8Nt3lS6VCqlAigWU3/9FeIhVbZ/xR5A+pMMWigGLRSDFopBC8WghWLQQjFooRi0UAxaKAYtFIMWSqZYDPFM1cfURoh3VOky4W7gwh7bffv2bdeuXUGfVBlgrhyPHj1aWlqKPYUioAX98+fPkZGRxsbGffv2xZ5FEWRiD/AnzczMvHr1amBgoKamJvYsioMT9OTkZCaTGRoaij2IYiIEvbS0dPfu3RMnTrS0tMSeRZERgr5x48a1a9eqq6tjD6L4CD8UXrx4cWxsbHFxMfYgio8QdENDw4ULF8bHx9++fRt7FkWWJv01Bo8fP06n011dXUk/pLJF+Ib+j+7u7vr6+lu3bq2ursaeRXGggk6lUgcOHDhz5szt27ddqSsTauX43ezsbENDQ8gXVQ7A13YNYf7XVFaw13Z/w7t371pbW2NPwZfo50zbof+etbW10dHRrVu3xh4ELsDnTPhN4f/pw4cPT5486evr27lzZ+xZyMJ8ztgfCv9HT58+XV5ePnXqVOxB4IJ9zpW7cvz69Wt0dLS2ttaaExX4c67QlWN+fv7Bgwf9/f11dXWxZyEL/zlX6Dd0Lpfr6emx5qSF/5wrd4eemJjYvXt3R0dH7EHgAn/OFfoNnUqlent7M5lMPp+PPQhc4M+5cr+hN3358iWXy/X399fX18eehSzY51zpQW/K5XKNjY3t7e2xB4EL8DlX7srxu/7+/vX19ZmZmdiDwAX4nP2G/q8fP37s2LEj9hR8iX7O6UIhRNBVH4sb+8o9aAF4bScUd2ihGLRQDFooBi0UgxaKQQvFoIVi0EIxaKEYtFAMWijgvwpMlcjjJKG4cgjFoIVi0EIxaKEYtFAMWigGLRSDFopBC8WghWLQQjFooXhtJxSv7YTiyiEUgxaKQQvFoIVi0EIxaKEYtFAMWigGLRSDFopBC8WgheK1nVC8thOKK4dQDFooBi0UgxaKQQvFoIVi0EIxaKEYtFAMWigGLRSDForXdkLx2k4orhxCMWihGLRQDFooBi0UgxaKQQvFoIVi0EIxaKEYtFA8ThKKx0lCceUQikELxaCFYtBCMWihGLRQDFooBi0UgxaKQQvFoIVi0ELx2k4o2Gu79+/fNzc3B31SZQC4ciwsLAwPD9fV1cUeRBFkYg/wh71582ZmZmZoaGjLli2xZ1EEqKAfPnxYU1MzODgYexBFAwn6+/fv+Xy+q6urqakp9iyKiRB0oVB4+fKla4ZSjB8Kc7lcT0+PNSuVSqVLpVKId4rFVGJ/QLi+vn7v3r2DBw8eOnQooSf0T0H4hs5kMoODgwsLC5OTk7FnUWSEoDedPHmyqalpZGRkcXEx9iyKhrBy/G55eTmXy2Wz2dbW1gDPqdxwvqE31dTUXLp06fPnz3Nzc7FnUQS0oDd1d3dXV1fHnkIRgK/t6r5/D/2kosNe26k8raysvH79urOzM6H/PnPlUHkqFAp37tw5cuRIck8QfvWtf4Spqan19fUrV64k+opBK3HLy8v5fP7YsWNtbW1Jv2XQSlahUHj+/HlfX19tbW2A5wxaCZqamtrY2Lh8+XKwF/2hUAlaXV3dunVryBcNWgk6ffr09u3bx8bGNjYC/R7CoJWsw4cPd3V1DQ8Pz87OBniOdpyksjUxMbFnz55sNpvoK35DK5De3t6qqqp8Pp/oKwatcNrb27PZ7LNnz5J7Il0ohFg5qj4WN/a5cihx2OOkpaWlbdu2BX1SZYC5ckxPT3vgX5mAQW/+2LF///7YgygC1K++5+bmxsfH+/r69u7dG3sWxcEJenp6en5+/urVq7EHUUyQlSOfz6fT6XPnzsUeRJERgr5+/XpHR8fx48djD6L4CEGfPXv2xYsXsadQWSAE3dbWls1mb968+fXr19izKDLOcVKpVMrlcs3NzUePHk30IZUzwjf0pnQ6ff78+dXV1fv378eeRdFwgt7U2dnZ1tY2PDy8trYWexZFwFk5fre2tvbp06eWlpZgL6pMeG0nFOy1nSoTbYdWhTNooRi0UAxaKAYtFIMWikELxaCFYtBCMWihGLRQDFoo4H94U5XIazuhuHIIxaCFYtBCMWihGLRQDFooBi0UgxaKQQvFoIVi0EIxaKF4bScUr+2E4sohFIMWikELxaCFYtBCMWihGLRQDFooBi0UgxaKQQvF4ySheJwkFFcOoRi0UAxaKAYtFIMWikELxaCFYtBCMWihGLRQDFooBi0Ur+2E4rWdUFw5hGLQQjFooRi0UAxaKAYtFIMWikELxaCFYtBCMWihGLRQvLYTitd2QnHlEIpBC8WghWLQQjFooRi0UAxaKAYtFIMWikELxaCF4nGSUDxOEoorh1AMWigGLRSDFopBC8WghWLQQjFooRi0UAxaKAYtFIMWitd2QvHaTiiuHEIxaKEYtFAMWigGLRSDFopBC8WghWLQQjFooRi0UAxaKOmBgYEAz+xdWZmvrg7wkCpcoG9oa1YYrhxCMWihGLRQDFooBi0UgxaKQQvFoIVi0EIxaKEYtFAMWigGLRSDFopBC8WghWLQQjFooQQKeu/KSpiHVOHSpVIpxDvFYircvxWgyuXKIRSDFopBC8WghWLQQjFooRi0UAxaKAYtFIMWikELxaCFkikWQzxT9TG1EeIdVbpMuBs4j+2UPFcOoRi0UAxaKAYtFIMWikELxaCFYtBCMWihGLRQDFooBi0Ur+2E4rWdUFw5hGLQQjFooRi0UAxaKAYtFIMWikELxaCFYtBCMWihGLRQvLYTitd2QnHlEIpBC8WghWLQQjFooRi0UAxaKAYtFIMWikELxaCF4nGSUDxOEoorh1AMWigGLRSDFopBC8WghWLQQjFooRi0UAxaKAYtFIMWitd2QvHaTiiuHEIxaKEYtFAMWigGLRSDFopBC8WghWLQQjFooRi0UAxaKF7bCcVrO6G4cgjFoIVi0EIxaKEYtFAMWigGLRSDFopBC8WghWLQQvE4SSgeJwnFlUMoBi0UgxaKQQvFoIVi0EIxaKEYtFD+DW9jMU7lsRS6AAAAAElFTkSuQmCC'/>
+  <img id='thumbnail' style='display:none;' src='data:image/png;base64,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'/>
 
 <svg width='700px' height='800px' xmlns='http://www.w3.org/2000/svg' xmlns:xlink='http://www.w3.org/1999/xlink'>
-<defs> <style type='text/css'><![CDATA[ 
+<defs> <style type='text/css'><![CDATA[
   path { stroke-linecap: round; stroke-linejoin: round; }
-  .ruleline { shape-rendering: crispEdges; }
 ]]></style> </defs>
 <g id='page_1' width='700.000' height='800.000' xruling='0.000' yruling='40.000' marginLeft='100.000' papercolor='#FFFFFF' rulecolor='#FF0000FF'>
+<rect id='pagebg' width='700.000' height='800.000' fill='#FFFFFF'/>
+<g class='ruleline'>
+<g class='rulepattern' shape-rendering='crispEdges'>
+<pattern id='pattern0' class='yruling' x='0.000' y='0.000' width='700.000' height='40.000' patternUnits='userSpaceOnUse'>
+<path vector-effect='non-scaling-stroke' fill='none' stroke='#0000FF' stroke-width='1.000' d='M0.000 40.000 L 65535.000 40.000'/>
+</pattern>
+<rect x='0.000' y='0.000' width='700.000' height='800.000' fill='url(#pattern0)'/>
+</g>
+<g class='rulepattern' shape-rendering='crispEdges'>
+<pattern id='pattern1' class='xmargin' x='100.000' y='0.000' width='600.000' height='800.000' patternUnits='userSpaceOnUse'>
+<path vector-effect='non-scaling-stroke' fill='none' stroke='#FF0000' stroke-width='1.000' d='M0.000 0.000 L 0.000 65535.000'/>
+</pattern>
+<rect x='100.000' y='0.000' width='600.000' height='800.000' fill='url(#pattern1)'/>
+</g>
+</g>
 <path __comx='200.050' __comy='370.011' fill='none' stroke='#000000' stroke-width='1.000' d='M210.000 365.200 L 190.100 380.100 209.800 395.100'/>
 <path __comx='600.050' __comy='410.011' fill='none' stroke='#000000' stroke-width='1.000' d='M610.000 405.200 L 590.100 420.100 609.800 435.100'/>
 <path __comx='200.050' __comy='450.011' fill='none' stroke='#000000' stroke-width='1.000' d='M210.000 445.200 L 190.100 460.100 209.800 475.100'/>
@@ -35,11 +63,25 @@
 </g>
 </svg>
 <svg width='700px' height='800px' xmlns='http://www.w3.org/2000/svg' xmlns:xlink='http://www.w3.org/1999/xlink'>
-<defs> <style type='text/css'><![CDATA[ 
+<defs> <style type='text/css'><![CDATA[
   path { stroke-linecap: round; stroke-linejoin: round; }
-  .ruleline { shape-rendering: crispEdges; }
 ]]></style> </defs>
 <g id='page_1' width='700.000' height='800.000' xruling='0.000' yruling='40.000' marginLeft='100.000' papercolor='#FFFFFF' rulecolor='#FF0000FF'>
+<rect id='pagebg' width='700.000' height='800.000' fill='#FFFFFF'/>
+<g class='ruleline'>
+<g class='rulepattern' shape-rendering='crispEdges'>
+<pattern id='pattern0' class='yruling' x='0.000' y='0.000' width='700.000' height='40.000' patternUnits='userSpaceOnUse'>
+<path vector-effect='non-scaling-stroke' fill='none' stroke='#0000FF' stroke-width='1.000' d='M0.000 40.000 L 65535.000 40.000'/>
+</pattern>
+<rect x='0.000' y='0.000' width='700.000' height='800.000' fill='url(#pattern0)'/>
+</g>
+<g class='rulepattern' shape-rendering='crispEdges'>
+<pattern id='pattern1' class='xmargin' x='100.000' y='0.000' width='600.000' height='800.000' patternUnits='userSpaceOnUse'>
+<path vector-effect='non-scaling-stroke' fill='none' stroke='#FF0000' stroke-width='1.000' d='M0.000 0.000 L 0.000 65535.000'/>
+</pattern>
+<rect x='100.000' y='0.000' width='600.000' height='800.000' fill='url(#pattern1)'/>
+</g>
+</g>
 <path __comx='165.050' __comy='450.011' fill='none' stroke='#000000' stroke-width='1.000' d='M175.000 445.200 L 155.100 460.100 174.800 475.100'/>
 <path __comx='215.050' __comy='450.011' fill='none' stroke='#000000' stroke-width='1.000' d='M225.000 445.200 L 205.100 460.100 224.800 475.100'/>
 <path __comx='264.869' __comy='450.014' fill='#000000' stroke='none' stroke-width='1.200' d='M274.817 444.955 L 254.554 460.098 274.527 475.458 275.073 474.742 255.646 460.102 275.183 445.445 Z'/>
