@@ -24,8 +24,10 @@ ScribbleTest::ScribbleTest(const QString& path)
 {
   scribbleConfig = new ScribbleConfig();
   scribbleConfig->set("singleFile", true);
+  scribbleConfig->set("reduceFileSize", 0);
   // don't use panBorder
   scribbleConfig->set("panFromEdge", false);
+  scribbleConfig->set("popupToolbar", false);
   // disable input smoothing
   scribbleConfig->set("inputSmoothing", 0);
   // include thumbnail in test output as a check of rendering
@@ -47,7 +49,8 @@ ScribbleTest::ScribbleTest(const QString& path)
   scribbleMode->setRuled(true);
   scribbleMode->setMode(MODE_STROKE);
   scribbleDoc = new ScribbleDoc(NULL, scribbleConfig, scribbleMode);
-  scribbleArea = scribbleDoc->addArea();
+  scribbleArea = new ScribbleArea(scribbleDoc);
+  scribbleDoc->addArea(scribbleArea);
   bookmarkArea = new BookmarkView(scribbleConfig, scribbleDoc);
   syncSlave = NULL;
   waitForSyncDone = false;
@@ -182,10 +185,11 @@ void ScribbleTest::runAll(bool runsynctest)
     &ScribbleTest::test11,
     &ScribbleTest::test12,
     &ScribbleTest::test13,
-    &ScribbleTest::test14
+    &ScribbleTest::test14,
+    &ScribbleTest::synctest01
   };
   unsigned int totaltests = sizeof(tests)/sizeof(tests[0]);
-  unsigned int nonsynctests = totaltests - 1;  // test14 is for sync only
+  unsigned int nonsynctests = totaltests - 1;  // last test is for sync only
 
   // create sync slave for sync test
   if(runsynctest) {
@@ -205,7 +209,11 @@ void ScribbleTest::runAll(bool runsynctest)
     doCommand(ID_RESETZOOM);
     scribbleDoc->newDocument();
     // attempt to open input file; fails quietly if not present
-    scribbleDoc->openDocument(QSTRINGCHAR(basefile + "_in.html"));
+    Document::loadresult_t res = scribbleDoc->openDocument(QSTRINGCHAR(basefile + "_in.html"));
+    if(res == Document::LOAD_NONFATAL) {
+      scribbleDoc->checkAndClearErrors();
+      scribbleDoc->cfg->set("test_loadErrors", true);
+    }
     // reset mode
     scribbleMode->setRuled(true);
     scribbleMode->setMode(MODE_STROKE);
@@ -245,8 +253,13 @@ void ScribbleTest::runAll(bool runsynctest)
     }
 
     scribbleArea->doPaintEvent(screenPaint); //, screenRect);
-    // We have looked the png output in ages, so stop generating for now
+    // We haven't looked the png output in ages, so stop generating for now
     //screenImg->save(basefile + "_out.png", "png");
+    // include dirtyCount in output file as a check on undo system
+    int dirtycount = scribbleDoc->document->dirtyCount;
+    for(unsigned int pp = 0; pp < scribbleDoc->document->pages.size(); pp++)
+      dirtycount += scribbleDoc->document->pages[pp]->dirtyCount;
+    scribbleDoc->cfg->set("test_dirtyCount", dirtycount);
     // write output file
     Element::SVG_NO_TIMESTAMP = true;
     QString outfile = basefile + "_out.html";
@@ -277,6 +290,20 @@ void ScribbleTest::performanceTest()
   scribbleDoc->setPen(ScribblePen(Painter::BLACK, 1, 2));
   scribbleArea->frameCount = 0;
   Timestamp t0 = mSecSinceEpoch();
+
+  // calibration - allocate 64 MB to ensure buffer doesn't fit in cache
+  const int bufferSize = 8192*8192;
+  Dim* calBuffer = new Dim[8192*8192];
+  for(int ii = 0; ii < bufferSize; ++ii)
+    calBuffer[ii] = Dim(ii*4 + 5);
+  for(int ii = 0; ii < bufferSize; ++ii)
+    calBuffer[ii] = sqrt(calBuffer[bufferSize-ii-1]*2.3 + 3.4);
+  delete[] calBuffer;
+
+  Timestamp t1 = mSecSinceEpoch();
+  int calibrationTime = t1 - t0;
+  t0 = t1;
+
   // draw many strokes
   for(Dim y = 20; y < 800; y += 20) {
     for(Dim x = 20; x < 800; x += 20) {
@@ -285,7 +312,7 @@ void ScribbleTest::performanceTest()
       scribbleArea->doRefresh();
     }
   }
-  Timestamp t1 = mSecSinceEpoch();
+  t1 = mSecSinceEpoch();
   int drawTime = t1 - t0;
   t0 = t1;
   int drawFrames = scribbleArea->frameCount;
@@ -336,8 +363,8 @@ void ScribbleTest::performanceTest()
   remove(QSTRINGCHAR(outfile));
 
   resultStr.format(
-      "Draw: %d frames in %d ms (%f FPS)\nMove: %d frames in %d ms (%f FPS)\nPan: %d frames in %d ms (%f FPS)"
-      "\nSave: %d bytes in %d ms\nLoad: %d ms",
+      "Calibration: %d ms\nDraw: %d frames in %d ms (%f FPS)\nMove: %d frames in %d ms (%f FPS)\nPan: %d frames in %d ms (%f FPS)"
+      "\nSave: %d bytes in %d ms\nLoad: %d ms", calibrationTime,
       drawFrames, drawTime, (drawFrames*1000.0)/drawTime, moveFrames, moveTime, (moveFrames*1000.0)/moveTime,
       panFrames, panTime, (panFrames*1000.0)/panTime, fileSize, saveTime, loadTime);
 }
@@ -505,7 +532,7 @@ void ScribbleTest::test0()
   s2(301, 402);
 }
 
-// similar to test0, but loads file test1_in.html
+// similar to test0, but loads file test1_in.html - a damaged (truncated) file to test error robustness
 void ScribbleTest::test1()
 {
   ie(104.4, 184.4, 0, pen, press);
@@ -816,11 +843,14 @@ void ScribbleTest::test8()
   ie(275, 420, 0, pen);
   ie(350, 420, 0, pen);
   ie(0, 0, 0, pen, release);
+  // hack to workaround new behavior that dropping selection outside screen area will not move
+  scribbleArea->screenRect = Rect(0, 0, 600, 1400);
   // drag selection to second page
   ie(200, 420, 0, pen, press);
   ie(210, 750, 0, pen);
   ie(215, 1300, 0, pen);
   ie(0, 0, 0, pen, release);
+  scribbleArea->screenRect = screenRect;
   // put pen down to clear selection
   s2(500, 1300);
 
@@ -911,6 +941,7 @@ void ScribbleTest::test9()
   redo();
 
   doCommand(ID_NEXTPAGE);
+  scribbleArea->gotoPos(1, Point(-10,-10));  // account for previous behavior of NEXTPAGE
   // create hyperref, then convert (along with another stroke) to point to bookmark on first page
   hr(150, 100);
   s2(200, 100);
@@ -1057,6 +1088,8 @@ void ScribbleTest::test12()
   ie(0, 0, 0, pen, release);
   // clear selection
   s2(550, 550);
+  doCommand(ID_UNDO);
+  doCommand(ID_REDO);
   // apply free eraser to image
   scribbleMode->setMode(MODE_ERASEFREE);
   ie(100, 40, 0, pen, press);
@@ -1078,9 +1111,11 @@ void ScribbleTest::test13()
   s2(100, 100);
   // create page 2
   doCommand(ID_NEXTPAGE);
+  scribbleArea->gotoPos(1, Point(-10,-10));  // account for previous behavior of NEXTPAGE
   s2(200, 200);
   // create page 3
   doCommand(ID_NEXTPAGE);
+  scribbleArea->gotoPos(2, Point(-10,-10));  // account for previous behavior of NEXTPAGE
   s2(300, 300);
   // undo and redo page creation ... added because of a crash
   doCommand(ID_UNDO);
@@ -1108,6 +1143,7 @@ void ScribbleTest::test13()
 
   // insert a new page after page 1
   doCommand(ID_PAGEAFTER);
+  scribbleArea->gotoPos(1, Point(-10,-10));  // account for previous behavior of NEXTPAGE
   s2(150, 150);
   // save and reopen
   if(!syncSlave) {
@@ -1131,6 +1167,50 @@ void ScribbleTest::test13()
   }
 }
 
+void ScribbleTest::test14()
+{
+  QByteArray qfilename = (outPath + "/test/test14_autosave.html").toLatin1();
+  const char* filename = qfilename.constData();
+
+  // easier to figure out what's going on if screen space and Dim space are the same
+  scribbleArea->gotoPos(0, Point(0,0));
+
+  s2(200, 179);
+  f2(250, 182);
+  hr(300, 181);
+  doCommand(ID_SELALL);
+  // test scale selection with one negative and one positive scale factor
+  ie(188, 162, 0, pen, press); // top left corner
+  ie(350, 162, 0, pen);
+  ie(450, 162, 0, pen);
+  ie(0, 0, 0, pen, release);
+
+  // test scale w/ stroke width scaling
+  ie(450, 198, 0, pen, press, MODEMOD_PENBTN);
+  ie(500, 250, 0, pen, INPUTEVENT_MOVE, MODEMOD_PENBTN);
+  ie(550, 300, 0, pen, INPUTEVENT_MOVE, MODEMOD_PENBTN);
+  ie(0, 0, 0, pen, release);
+
+  // test rotation
+  ie(435, 140, 0, pen, press);
+  ie(460, 160, 0, pen);
+  ie(490, 190, 0, pen);
+  ie(0, 0, 0, pen, release);
+
+  // why not...
+  doCommand(ID_UNDO);
+  doCommand(ID_REDO);
+
+  // test autosave
+  if(!syncSlave) {
+    scribbleDoc->saveBackup(filename);
+    // reopen
+    scribbleDoc->openDocument(filename, false);  // delayload = false
+    // delete the autosave files
+    ScribbleDoc::deleteDocument(filename);
+  }
+}
+
 // back and forth test for whiteboard
 
 void ScribbleTest::waitForSync()
@@ -1142,7 +1222,7 @@ void ScribbleTest::waitForSync()
     QApplication::processEvents();
 }
 
-void ScribbleTest::test14()
+void ScribbleTest::synctest01()
 {
   scribbleArea->gotoPos(0, Point(0,0));
   hr(150, 100);
@@ -1151,7 +1231,7 @@ void ScribbleTest::test14()
   doCommand(ID_SELALL);
 
   waitForSync();
-  syncSlave->test14slave1();
+  syncSlave->synctest01slave1();
 
   // move the selection
   ie(200, 100, 0, pen, press);
@@ -1160,10 +1240,10 @@ void ScribbleTest::test14()
   ie(0, 0, 0, pen, release);
 
   waitForSync();
-  syncSlave->test14slave2();
+  syncSlave->synctest01slave2();
 }
 
-void ScribbleTest::test14slave1()
+void ScribbleTest::synctest01slave1()
 {
   scribbleArea->gotoPos(0, Point(0,0));
   s2(550, 550);
@@ -1175,13 +1255,13 @@ void ScribbleTest::test14slave1()
   ie(0, 0, 0, pen, release);
 }
 
-void ScribbleTest::test14slave2()
+void ScribbleTest::synctest01slave2()
 {
   // restore the deleted stroke
   undo();
 
   // disconnect and reconnect to whiteboard
-  startSyncTest(14);
+  startSyncTest(15);
   // wait for connection
   while(!scribbleDoc->scribbleSync->isSyncActive())
     QApplication::processEvents();

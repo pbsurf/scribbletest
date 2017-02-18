@@ -75,8 +75,9 @@ private:
   void test12();
   void test13();
   void test14();
-  void test14slave1();
-  void test14slave2();
+  void synctest01();
+  void synctest01slave1();
+  void synctest01slave2();
 };
 
 // debug event filter - prints name of every event received
