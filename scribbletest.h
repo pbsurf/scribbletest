@@ -35,6 +35,7 @@ private:
   QString outPath;
   int nFailed;
 
+  QImage extractThumbnail(const QString& filename);
   // shared whiteboard testing
   pugi::xml_document swbXML;
   ScribbleTest* syncSlave;

@@ -39,6 +39,8 @@ ScribbleTest::ScribbleTest(const QString& path)
   scribbleConfig->set("xRuling", 0.0);
   scribbleConfig->set("yRuling", 40.0);
   scribbleConfig->set("marginLeft", 100.0);
+  scribbleConfig->set("ruleColor", (int)0xFF0000FF);
+  scribbleConfig->migrateConfig();  // convert xRuling, yRuling, marginLeft to RuleLayer
   // disable DPI detection
   scribbleConfig->set("screenDPI", int(ScribbleView::DEFAULT_DPI));
   // disable pen detection (so that mouse input doesn't get disabled)
@@ -139,6 +141,26 @@ void ScribbleTest::syncSlaveMsg(QString msg, int level)
   else
     ++nFailed;
   waitForSyncDone = false;
+}
+
+// cut and paste from DocumentList :(
+QImage ScribbleTest::extractThumbnail(const QString& filename)
+{
+  QFile file(filename);
+  file.open(QIODevice::ReadOnly);
+  QXmlStreamReader xml(&file);
+  // advance to thumbnail
+  while(!(xml.readNext() == QXmlStreamReader::StartElement
+          && xml.name() == "img" && xml.attributes().value("id") == "thumbnail")) {
+    // if we've read more than 4K bytes without finding thumbnail, abort
+    if(xml.atEnd() || xml.characterOffset() > 4096)  // || xml.hasError()
+      return QImage();
+  }
+  QByteArray base64 = xml.attributes().value("src").toLatin1();
+  base64.remove(0, base64.indexOf("base64,") + 7);  // remove preamble
+  // using QImageReader to read directly to scaled image is actually slower!
+  // QPixmap::scaled() and QImage::scaled() give identical performance
+  return QImage::fromData(QByteArray::fromBase64(base64)).convertToFormat(QImage::Format_RGB32);
 }
 
 // if svgonly is true, comparison will start from first "<svg" instead of beginning of file
@@ -268,8 +290,26 @@ void ScribbleTest::runAll(bool runsynctest)
     // we've had so many problems with thumbnails that we will count mismatches of those separately
     if(testCompareFiles(QSTRINGCHAR(outfile), QSTRINGCHAR(basefile + "_ref.html")))
       remove(QSTRINGCHAR(outfile));
-    else if(testCompareFiles(QSTRINGCHAR(outfile), QSTRINGCHAR(basefile + "_ref.html"), true))
-      nThumbsFailed++;
+    else if(testCompareFiles(QSTRINGCHAR(outfile), QSTRINGCHAR(basefile + "_ref.html"), true)) {
+      QImage refthumb = extractThumbnail(basefile + "_ref.html");
+      QImage outthumb = extractThumbnail(outfile);
+      if(outthumb != refthumb) {
+        nThumbsFailed++;
+        refthumb.save(basefile + "_ref.png", "png");
+        outthumb.save(basefile + "_out.png", "png");
+        /*int w = outthumb.width(), h = outthumb.height();
+        for(int y = 0; y < h; ++y) {
+          for(int x = 0; x < w; ++x) {
+            QRgb o = outthumb.pixel(x,y);
+            QRgb r = refthumb.pixel(x,y);
+            //QRgb d = qRgb((qRed(o) + 127) - qRed(r), (qGreen(o) + 127) - qGreen(r), (qBlue(o) + 127) - qBlue(r));
+            outthumb.setPixel(x, y, o == r ? Qt::white : Qt::black);
+          }
+        }
+        outthumb.save(basefile + "_diff.png", "png"); */
+        remove(QSTRINGCHAR(outfile));
+      }
+    }
     else {
       slFailed.append(QString::number(ii));
       nFailed++;
@@ -1203,7 +1243,7 @@ void ScribbleTest::test14()
 
   // test autosave
   if(!syncSlave) {
-    scribbleDoc->saveBackup(filename);
+    scribbleDoc->saveBackup(filename, "");
     // reopen
     scribbleDoc->openDocument(filename, false);  // delayload = false
     // delete the autosave files
