@@ -1,11 +1,9 @@
 #include "scribbletest.h"
+#include <fstream>
+
+#include "application.h"
 #include "strokebuilder.h"
 #include "scribblesync.h"
-
-#include <QtGui>
-#include <QApplication>
-#include <QDebug>
-#include <QTcpSocket>
 
 // Ideally, these tests should be run under valgrind to help check for memory leaks
 // renaming out files to refs (Linux):  for i in {0..13}; do mv "test${i}_out.html" "test${i}_ref.html"; done;
@@ -19,7 +17,10 @@
 // Qt 4 vs 5: no significant speed difference on Test or Performance Test; Qt 5 seems about 2x faster drawing
 //  stroked paths but no difference with filled paths
 
-// Just get main view working ... deal with bookmarks later
+#ifndef SCRIBBLE_TEST_PATH
+#define SCRIBBLE_TEST_PATH "."
+#endif
+
 ScribbleTest::ScribbleTest(const QString& path)
 {
   scribbleConfig = new ScribbleConfig();
@@ -28,6 +29,7 @@ ScribbleTest::ScribbleTest(const QString& path)
   // don't use panBorder
   scribbleConfig->set("panFromEdge", false);
   scribbleConfig->set("popupToolbar", false);
+  scribbleConfig->set("compressSVG", false);
   // disable input smoothing
   scribbleConfig->set("inputSmoothing", 0);
   // include thumbnail in test output as a check of rendering
@@ -39,13 +41,13 @@ ScribbleTest::ScribbleTest(const QString& path)
   scribbleConfig->set("xRuling", 0.0);
   scribbleConfig->set("yRuling", 40.0);
   scribbleConfig->set("marginLeft", 100.0);
-  scribbleConfig->set("ruleColor", (int)0xFF0000FF);
-  scribbleConfig->migrateConfig();  // convert xRuling, yRuling, marginLeft to RuleLayer
+  scribbleConfig->set("ruleColor", int(Color::BLUE));
+  //scribbleConfig->migrateConfig();  // convert xRuling, yRuling, marginLeft to RuleLayer
   // disable DPI detection
   scribbleConfig->set("screenDPI", int(ScribbleView::DEFAULT_DPI));
   // disable pen detection (so that mouse input doesn't get disabled)
   scribbleConfig->set("penType", ScribbleInput::DETECTED_PEN);
-  Painter::initPaintSystem();
+  //Painter::initPaintSystem();
   scribbleMode = new ScribbleMode(scribbleConfig);
   // NOTE: if you remove or change this, you must find another way to init erase, select, ins space modes!
   scribbleMode->setRuled(true);
@@ -59,11 +61,13 @@ ScribbleTest::ScribbleTest(const QString& path)
   outPath = path;
   // setup ScribbleArea
   scribbleDoc->newDocument();
-  screenRect = Rect(0,0,600,800);
-  screenImg = new QImage(QSize(screenRect.width(), screenRect.height()), QImage::Format_RGB32);
+  screenRect = Rect::ltwh(0,0,600,800);
+  screenImg = new Image(screenRect.width(), screenRect.height());
   screenPaint = new Painter(screenImg);
   scribbleArea->screenRect = screenRect;
+  screenPaint->beginFrame();
   scribbleArea->doPaintEvent(screenPaint);  // ensure that ScribbleView::imgPaint is inited
+  screenPaint->endFrame();
   //scribbleArea->setGeometry(Painter::rectToQRect(screenRect));
   swbXML.append_child("swb");
   swbXML.first_child().append_attribute("token").set_value("SCRIBBLE_SYNC_TEST");
@@ -107,7 +111,7 @@ void ScribbleTest::startSyncTest(int testnum)
   scribbleDoc->newDocument();
   swbXML.first_child().attribute("name").set_value(fstring("testdoc%d", testnum).c_str());
   scribbleDoc->openSharedDoc(scribbleConfig->String("syncServer"), swbXML.first_child(), false);
-  QObject::connect(scribbleDoc->scribbleSync, SIGNAL(userMessage(QString,int)), this, SLOT(syncSlaveMsg(QString,int)));
+  ///QObject::connect(scribbleDoc->scribbleSync, SIGNAL(userMessage(QString,int)), this, SLOT(syncSlaveMsg(QString,int)));
   waitForSyncDone = true;
 }
 
@@ -115,24 +119,23 @@ void ScribbleTest::checkStrokeMap(ScribbleDoc* doc, const char* msg)
 {
   int n = 0;
   for(unsigned int pp = 0; pp < doc->document->pages.size(); pp++)
-    n += doc->document->pages[pp]->layer0->count();
+    n += doc->document->pages[pp]->strokeCount();
   int m = doc->scribbleSync->strokemap.size();
   if(n != m)
-    qDebug("%s - strokemap count incorrect: %d strokes in document, %d strokes in strokemap", msg, n, m);
+    SCRIBBLE_LOG("%s - strokemap count incorrect: %d strokes in document, %d strokes in strokemap", msg, n, m);
 }
 
 // wait on disconnect message to save and check slave document and advance to next test
 // note that the slave doesn't load any documents
 void ScribbleTest::syncSlaveMsg(QString msg, int level)
 {
-  if(!msg.contains("testuser1 disconnected"))
+  if(!StringRef(msg).contains("testuser1 disconnected"))
     return;
 
   // check strokemap count
   checkStrokeMap(scribbleDoc, "slave (testuser2)");
   // write output file
-  Element::SVG_NO_TIMESTAMP = true;
-  QString basefile = outPath + "/test/test" + QString::number(syncTestNum);
+  QString basefile = fstring("%s/test%d", outPath.c_str(), syncTestNum);
   QString outfile = basefile + "_out.html";
   scribbleDoc->saveDocument(QSTRINGCHAR(outfile));
   // compare output to reference; tests of one-file-per-page must handle the svg files themselves
@@ -143,45 +146,25 @@ void ScribbleTest::syncSlaveMsg(QString msg, int level)
   waitForSyncDone = false;
 }
 
-// cut and paste from DocumentList :(
-QImage ScribbleTest::extractThumbnail(const QString& filename)
-{
-  QFile file(filename);
-  file.open(QIODevice::ReadOnly);
-  QXmlStreamReader xml(&file);
-  // advance to thumbnail
-  while(!(xml.readNext() == QXmlStreamReader::StartElement
-          && xml.name() == "img" && xml.attributes().value("id") == "thumbnail")) {
-    // if we've read more than 4K bytes without finding thumbnail, abort
-    if(xml.atEnd() || xml.characterOffset() > 4096)  // || xml.hasError()
-      return QImage();
-  }
-  QByteArray base64 = xml.attributes().value("src").toLatin1();
-  base64.remove(0, base64.indexOf("base64,") + 7);  // remove preamble
-  // using QImageReader to read directly to scaled image is actually slower!
-  // QPixmap::scaled() and QImage::scaled() give identical performance
-  return QImage::fromData(QByteArray::fromBase64(base64)).convertToFormat(QImage::Format_RGB32);
-}
-
 // if svgonly is true, comparison will start from first "<svg" instead of beginning of file
 bool ScribbleTest::testCompareFiles(const char* f1, const char* f2, bool svgonly)
 {
-  simplebuf b1;
-  simplebuf b2;
-  readall(&b1, f1);
-  readall(&b2, f2);
+  std::vector<char> b1;
+  std::vector<char> b2;
+  readFile(&b1, f1);
+  readFile(&b2, f2);
   // fail if either file is missing
-  if(b1.pos == 0 || b2.pos == 0)
+  if(b1.empty() || b2.empty())
     return false;
   // convert to null-terminated strings (overwrites last char)
-  b1.data[b1.pos-1] = '\0';
-  b2.data[b2.pos-1] = '\0';
+  b1.back() = '\0';
+  b2.back() = '\0';
   if(svgonly) {
-    char* s1 = strstr(b1.data, "<svg");
-    char* s2 = strstr(b2.data, "<svg");
+    char* s1 = strstr(b1.data(), "<svg");
+    char* s2 = strstr(b2.data(), "<svg");
     return s1 && s2 && strcmp(s1, s2) == 0;
   }
-  return b1.pos == b2.pos && strcmp(b1.data, b2.data) == 0;
+  return b1.size() == b2.size() && strcmp(b1.data(), b2.data()) == 0;
 }
 
 // a bunch of integration tests ... any "*_out.html" files present after test indicate a failure
@@ -225,10 +208,16 @@ void ScribbleTest::runAll(bool runsynctest)
 
   // don't add extra points to test strokes
   PointDensityFilter::MAX_POINT_DIST = 1000;
+  // don't serialize timestamp
+  Element::SVG_NO_TIMESTAMP = true;
+  QSvgPath::D_RELATIVE = false;
   Timestamp runAllTime = mSecSinceEpoch();
   for(unsigned int ii = 0; true; ii++) {
-    QString basefile = outPath + "/test/test" + QString::number(ii);
+    QString basefile = fstring("%s/test%d", outPath.c_str(), ii);
     doCommand(ID_RESETZOOM);
+    // uncomment this to update ref files (saving as *_new.html)
+    if(scribbleDoc->openDocument((basefile + "_ref.html").c_str()) == Document::LOAD_OK)
+      scribbleDoc->saveDocument((basefile + "_new.html").c_str());
     scribbleDoc->newDocument();
     // attempt to open input file; fails quietly if not present
     Document::loadresult_t res = scribbleDoc->openDocument(QSTRINGCHAR(basefile + "_in.html"));
@@ -239,14 +228,14 @@ void ScribbleTest::runAll(bool runsynctest)
     // reset mode
     scribbleMode->setRuled(true);
     scribbleMode->setMode(MODE_STROKE);
-    scribbleDoc->setPen(ScribblePen(Painter::BLACK, 1, 0));
+    scribbleDoc->setPen(ScribblePen(Color::BLACK, 1, 0));
     // prevent unintended updates while inspecting:
     scribbleDoc->cfg->set("savePrompt", true);
 
     if(syncSlave) {
       // wait for slave to finish previous test
       while(syncSlave->waitForSyncDone)
-        QApplication::processEvents();
+        Application::processEvents();
       if(ii >= totaltests)
         break;
       // create whiteboard
@@ -254,12 +243,12 @@ void ScribbleTest::runAll(bool runsynctest)
       scribbleDoc->openSharedDoc(scribbleConfig->String("syncServer"), swbXML.first_child(), true);
       // wait until we connect
       while(!scribbleDoc->scribbleSync->isSyncActive())
-        QApplication::processEvents();
+        Application::processEvents();
       // connect the slave
       syncSlave->startSyncTest(ii);
       // wait until slave connects
       while(!syncSlave->scribbleDoc->scribbleSync->isSyncActive())
-        QApplication::processEvents();
+        Application::processEvents();
     }
     else if(ii >= nonsynctests)
       break;
@@ -274,7 +263,12 @@ void ScribbleTest::runAll(bool runsynctest)
       continue;
     }
 
-    scribbleArea->doPaintEvent(screenPaint); //, screenRect);
+    screenPaint->beginFrame();
+    bookmarkArea->doPaintEvent(screenPaint);
+    screenPaint->endFrame();
+    screenPaint->beginFrame();
+    scribbleArea->doPaintEvent(screenPaint);
+    screenPaint->endFrame();
     // We haven't looked the png output in ages, so stop generating for now
     //screenImg->save(basefile + "_out.png", "png");
     // include dirtyCount in output file as a check on undo system
@@ -283,20 +277,26 @@ void ScribbleTest::runAll(bool runsynctest)
       dirtycount += scribbleDoc->document->pages[pp]->dirtyCount;
     scribbleDoc->cfg->set("test_dirtyCount", dirtycount);
     // write output file
-    Element::SVG_NO_TIMESTAMP = true;
     QString outfile = basefile + "_out.html";
-    scribbleDoc->saveDocument(QSTRINGCHAR(outfile));
+    if(!scribbleDoc->saveDocument(QSTRINGCHAR(outfile)))
+      SCRIBBLE_LOG("ScribbleTest: error saving %s", outfile.c_str());
     // compare output to reference; tests of one-file-per-page must handle the svg files themselves
     // we've had so many problems with thumbnails that we will count mismatches of those separately
     if(testCompareFiles(QSTRINGCHAR(outfile), QSTRINGCHAR(basefile + "_ref.html")))
       remove(QSTRINGCHAR(outfile));
     else if(testCompareFiles(QSTRINGCHAR(outfile), QSTRINGCHAR(basefile + "_ref.html"), true)) {
-      QImage refthumb = extractThumbnail(basefile + "_ref.html");
-      QImage outthumb = extractThumbnail(outfile);
+      Image refthumb = ScribbleDoc::extractThumbnail((basefile + "_ref.html").c_str());
+      Image outthumb = ScribbleDoc::extractThumbnail(outfile.c_str());
       if(outthumb != refthumb) {
         nThumbsFailed++;
-        refthumb.save(basefile + "_ref.png", "png");
-        outthumb.save(basefile + "_out.png", "png");
+        std::ofstream refstrm((basefile + "_ref.png").c_str(), std::ios::binary);
+        auto refenc = refthumb.encodePNG();
+        refstrm.write((char*)refenc.data(), refenc.size());
+        std::ofstream outstrm((basefile + "_out.png").c_str(), std::ios::binary);
+        auto outenc = outthumb.encodePNG();
+        outstrm.write((char*)outenc.data(), outenc.size());
+        //refthumb.save(basefile + "_ref.png", "png");
+        //outthumb.save(basefile + "_out.png", "png");
         /*int w = outthumb.width(), h = outthumb.height();
         for(int y = 0; y < h; ++y) {
           for(int x = 0; x < w; ++x) {
@@ -311,23 +311,26 @@ void ScribbleTest::runAll(bool runsynctest)
       }
     }
     else {
-      slFailed.append(QString::number(ii));
+      slFailed.push_back(std::to_string(ii));
       nFailed++;
     }
   }
   runAllTime = mSecSinceEpoch() - runAllTime;
+  // restore global config
+  QSvgPath::D_RELATIVE = true;
+  Element::SVG_NO_TIMESTAMP = false;
   PointDensityFilter::MAX_POINT_DIST = 2;
   if(syncSlave)
     nFailed = syncSlave->nFailed;
-  resultStr.format("Tests completed in %d ms with %d failed tests (%s) and %d failed thumbnails.",
-      int(runAllTime), nFailed, QSTRINGCHAR(slFailed.join(", ")), nThumbsFailed);
+  resultStr = fstring("Tests completed in %d ms with %d failed tests (%s) and %d failed thumbnails.",
+      int(runAllTime), nFailed, strJoin(slFailed, ", ").c_str(), nThumbsFailed);
 }
 
 void ScribbleTest::performanceTest()
 {
   scribbleArea->gotoPos(0, Point(0,0));
   scribbleMode->setMode(MODE_STROKE);
-  scribbleDoc->setPen(ScribblePen(Painter::BLACK, 1, 2));
+  scribbleDoc->setPen(ScribblePen(Color::BLACK, 1, 2));
   scribbleArea->frameCount = 0;
   Timestamp t0 = mSecSinceEpoch();
 
@@ -347,7 +350,7 @@ void ScribbleTest::performanceTest()
   // draw many strokes
   for(Dim y = 20; y < 800; y += 20) {
     for(Dim x = 20; x < 800; x += 20) {
-      QApplication::processEvents();
+      Application::processEvents();
       s3(x, y);
       scribbleArea->doRefresh();
     }
@@ -361,7 +364,7 @@ void ScribbleTest::performanceTest()
   doCommand(ID_SELALL);
   // move them around
   for(int ii = 0; ii < 10; ii++) {
-    QApplication::processEvents();
+    Application::processEvents();
     s3(400, 400);
     scribbleArea->doRefresh();
   }
@@ -375,21 +378,21 @@ void ScribbleTest::performanceTest()
   ie(400, 800, 0, pen, press);
   for(int ii = 0; ii < 2000; ii++) {
     // cleverly generate a triangle wave
-    QApplication::processEvents();
+    Application::processEvents();
     ie(400, 16*ABS((ii % 100) - 50), 0, pen);
     scribbleArea->doRefresh();
   }
-  QApplication::processEvents();
+  Application::processEvents();
   ie(0, 0, 1, pen, release);
   scribbleArea->doRefresh();
-  QApplication::processEvents();
+  Application::processEvents();
   t1 = mSecSinceEpoch();
   int panTime = t1 - t0;
   t0 = t1;
   int panFrames = scribbleArea->frameCount;
 
   // save, then load file
-  QString outfile = QString(PROJECT_PATH) + "/test/perftest.html";
+  std::string outfile = std::string(SCRIBBLE_TEST_PATH) + "/perftest.html";
   scribbleDoc->cfg->set("singleFile", true);
   scribbleDoc->saveDocument(QSTRINGCHAR(outfile));
   t1 = mSecSinceEpoch();
@@ -399,10 +402,10 @@ void ScribbleTest::performanceTest()
   t1 = mSecSinceEpoch();
   int loadTime = t1 - t0;
   t0 = t1;
-  int fileSize = QFileInfo(outfile).size();
+  int fileSize = getFileSize(outfile);
   remove(QSTRINGCHAR(outfile));
 
-  resultStr.format(
+  resultStr = fstring(
       "Calibration: %d ms\nDraw: %d frames in %d ms (%f FPS)\nMove: %d frames in %d ms (%f FPS)\nPan: %d frames in %d ms (%f FPS)"
       "\nSave: %d bytes in %d ms\nLoad: %d ms", calibrationTime,
       drawFrames, drawTime, (drawFrames*1000.0)/drawTime, moveFrames, moveTime, (moveFrames*1000.0)/moveTime,
@@ -444,7 +447,7 @@ void ScribbleTest::inputTest()
   ie(250, 200, 0.5, INPUTSOURCE_TOUCH);
   ie(250, 200, 0, INPUTSOURCE_TOUCH, release);
 
-  resultStr.format("A diamond should have been drawn. Windows 8 touch injection OK: %s", (win8ok && injok) ? "true" : "false");
+  resultStr = fstring("A diamond should have been drawn. Windows 8 touch injection OK: %s", (win8ok && injok) ? "true" : "false");
 }
 
 // long stroke
@@ -503,7 +506,7 @@ void ScribbleTest::s2(Dim xoffset, Dim yoffset)
 void ScribbleTest::f2(Dim xoffset, Dim yoffset)
 {
   ScribblePen oldpen = scribbleDoc->getPen();
-  scribbleDoc->setPen(ScribblePen(Painter::BLACK, 1.2, 2, false));
+  scribbleDoc->setPen(ScribblePen(Color::BLACK, 1.2, 2, false));
   ie(10 + xoffset, -14.8 + yoffset, 0.3, pen, press);
   ie(-9.9 + xoffset, 0.1 + yoffset, 0.7, pen);
   ie(9.8 + xoffset, 15.1 + yoffset, 0.5, pen);
@@ -555,6 +558,7 @@ void ScribbleTest::test0()
   mtinput(INPUTEVENT_MOVE, 132, 125, INPUTEVENT_PRESS, 345, 327);
   mtinput(INPUTEVENT_MOVE, 144, 137, INPUTEVENT_MOVE, 340, 317);
   mtinput(INPUTEVENT_MOVE, 200, 197, INPUTEVENT_MOVE, 290, 295);
+  mtinput(INPUTEVENT_MOVE, 208, 204, INPUTEVENT_MOVE, 278, 275);  // zoom step >2 or <0.5 now cancels zoom
   mtinput(INPUTEVENT_MOVE, 216, 210, INPUTEVENT_MOVE, 264, 256);
   mtinput(INPUTEVENT_RELEASE, 216, 210, INPUTEVENT_MOVE, 262, 256);
   mtinput(INPUTEVENT_NONE, 0, 0, INPUTEVENT_MOVE, 260, 254);
@@ -748,7 +752,7 @@ void ScribbleTest::test3()
 void ScribbleTest::test4()
 {
   ss(0);
-  doCommand(ID_NEXTPAGE);
+  doCommand(ID_NEXTPAGENEW);
   ss(10);
   ss(20);
   doCommand(ID_SELALL);
@@ -770,7 +774,7 @@ void ScribbleTest::test5()
   scribbleDoc->setPageProperties(&props, false, true, false);
   ss(20);
   // add new page
-  doCommand(ID_NEXTPAGE);
+  doCommand(ID_NEXTPAGENEW);
   ss(0);
   // grow new page
   ie(104.4, 900, 0, pen, press);
@@ -868,7 +872,7 @@ void ScribbleTest::test8()
   scribbleDoc->setPageProperties(&props, false, true, false);
   // add new page
   s2(400,60);
-  doCommand(ID_NEXTPAGE);
+  doCommand(ID_NEXTPAGENEW);
   scribbleArea->gotoPos(0, Point(0,0));
   doCommand(ID_SELALL);
   doCommand(ID_DELSEL);
@@ -884,7 +888,7 @@ void ScribbleTest::test8()
   ie(350, 420, 0, pen);
   ie(0, 0, 0, pen, release);
   // hack to workaround new behavior that dropping selection outside screen area will not move
-  scribbleArea->screenRect = Rect(0, 0, 600, 1400);
+  scribbleArea->screenRect = Rect::ltwh(0, 0, 600, 1400);
   // drag selection to second page
   ie(200, 420, 0, pen, press);
   ie(210, 750, 0, pen);
@@ -969,7 +973,7 @@ void ScribbleTest::test9()
   ie(0, 0, 0, pen, release);
 
   // Must draw bookmarks so that findBookmark will work
-  scribbleDoc->document->drawBookmarks(screenPaint, NULL);
+  //scribbleDoc->document->drawBookmarks(screenPaint, Rect());
 
   // drop a bookmark off page, then undo - added because this used to cause crash on undo
   scribbleMode->setMode(MODE_BOOKMARK);
@@ -980,13 +984,13 @@ void ScribbleTest::test9()
   undo();
   redo();
 
-  doCommand(ID_NEXTPAGE);
+  doCommand(ID_NEXTPAGENEW);
   scribbleArea->gotoPos(1, Point(-10,-10));  // account for previous behavior of NEXTPAGE
   // create hyperref, then convert (along with another stroke) to point to bookmark on first page
   hr(150, 100);
   s2(200, 100);
   doCommand(ID_SELALL);
-  scribbleArea->createHyperRef(scribbleDoc->document->findBookmark(20));
+  scribbleArea->createHyperRef(bookmarkArea->findBookmark(scribbleDoc->document, 20));
 
   // add bookmark to 2nd page ... id should not be serialized for this one
   scribbleMode->setMode(MODE_BOOKMARK);
@@ -1001,7 +1005,7 @@ void ScribbleTest::test9()
   doCommand(ID_COPYSEL);
   doCommand(ID_PASTE);
   doCommand(ID_DELSEL);
-  doCommand(ID_NEXTPAGE);
+  doCommand(ID_NEXTPAGENEW);
 }
 
 // test changing properties and ins space ruled with hyperref
@@ -1023,11 +1027,12 @@ void ScribbleTest::test10()
   f2(250, 100);
   doCommand(ID_SELALL);
 
-  scribbleDoc->setPenColor(Painter::BLUE);
-  scribbleDoc->setPenWidth(2);
-  scribbleDoc->setPenWidth(3);
+  scribbleDoc->setPen(ScribblePen(Color::BLUE, -1));
+  scribbleDoc->setPen(ScribblePen(Color::INVALID_COLOR, 2));
+  scribbleDoc->setPen(ScribblePen(Color::INVALID_COLOR, 3));
   undo();
 
+  // Note pen not longer changed when selection active
   scribbleMode->setMode(MODE_INSSPACERULED);
   ie(104, 100, 0, pen, press);
   ie(195, 98, 0, pen);
@@ -1114,7 +1119,7 @@ void ScribbleTest::test12()
   ie(106, 100, 0, pen);
   ie(60, 60, 0, pen);
   ie(0, 0, 0, pen, release);
-  scribbleDoc->document->drawBookmarks(screenPaint, NULL);
+  //scribbleDoc->document->drawBookmarks(screenPaint, Rect());
   undo();
   // back to our regularly scheduled programming...
   s2(200, 179);
@@ -1143,18 +1148,18 @@ void ScribbleTest::test12()
 void ScribbleTest::test13()
 {
   // setup output path
-  QByteArray qfilename = (outPath + "/test/test13_out.html").toLatin1();
-  const char* filename = qfilename.constData();
+  std::string sfilename = outPath + "/test13_out.html";
+  const char* filename = sfilename.c_str();
 
   // create page 1
   scribbleArea->gotoPos(0, Point(0,0));
   s2(100, 100);
   // create page 2
-  doCommand(ID_NEXTPAGE);
+  doCommand(ID_NEXTPAGENEW);
   scribbleArea->gotoPos(1, Point(-10,-10));  // account for previous behavior of NEXTPAGE
   s2(200, 200);
   // create page 3
-  doCommand(ID_NEXTPAGE);
+  doCommand(ID_NEXTPAGENEW);
   scribbleArea->gotoPos(2, Point(-10,-10));  // account for previous behavior of NEXTPAGE
   s2(300, 300);
   // undo and redo page creation ... added because of a crash
@@ -1192,7 +1197,7 @@ void ScribbleTest::test13()
   }
 
   // remove page 3 (formerly page 2)
-  doCommand(ID_NEXTPAGE);
+  doCommand(ID_NEXTPAGENEW);
   doCommand(ID_DELPAGE);
   // save and reopen
   if(!syncSlave) {
@@ -1209,8 +1214,7 @@ void ScribbleTest::test13()
 
 void ScribbleTest::test14()
 {
-  QByteArray qfilename = (outPath + "/test/test14_autosave.html").toLatin1();
-  const char* filename = qfilename.constData();
+  std::string filename = outPath + "/test14_autosave.html";
 
   // easier to figure out what's going on if screen space and Dim space are the same
   scribbleArea->gotoPos(0, Point(0,0));
@@ -1243,11 +1247,11 @@ void ScribbleTest::test14()
 
   // test autosave
   if(!syncSlave) {
-    scribbleDoc->saveBackup(filename, "");
+    scribbleDoc->saveBackup(filename.c_str(), "");
     // reopen
-    scribbleDoc->openDocument(filename, false);  // delayload = false
+    scribbleDoc->openDocument(filename.c_str(), false);  // delayload = false
     // delete the autosave files
-    ScribbleDoc::deleteDocument(filename);
+    ScribbleDoc::deleteDocument(filename.c_str());
   }
 }
 
@@ -1259,7 +1263,7 @@ void ScribbleTest::waitForSync()
   // alternative, wait until master and slave stroke counts are equal?
   ScribbleSync* ss = scribbleDoc->scribbleSync;
   while(ss->canSendHist() || ss->rcvdPos != ss->sentPos || ss->bytesRcvd > syncSlave->scribbleDoc->scribbleSync->bytesRcvd)
-    QApplication::processEvents();
+    Application::processEvents();
 }
 
 void ScribbleTest::synctest01()
@@ -1304,31 +1308,5 @@ void ScribbleTest::synctest01slave2()
   startSyncTest(15);
   // wait for connection
   while(!scribbleDoc->scribbleSync->isSyncActive())
-    QApplication::processEvents();
-}
-
-void DebugEventFilter::printEvent(QObject* obj, QEvent* event)
-{
-  QString extra;
-  switch(event->type()) {
-  //case QEvent::Timer: return;
-  case QEvent::TabletMove:
-  case QEvent::TabletPress:
-  case QEvent::TabletRelease:
-  {
-    QTabletEvent* tev = static_cast<QTabletEvent*>(event);
-    extra = QString().sprintf("- tablet pos: %.3f, %.3f", tev->hiResGlobalX(), tev->hiResGlobalY());
-    break;
-  }
-  default:
-    break;
-  }
-  qDebug() << obj->metaObject()->className()
-           << "(" << (const void *)obj << ")  - " << obj->objectName() << " - " << event << QSTRINGCHAR(extra);
-}
-
-bool DebugEventFilter::eventFilter(QObject* obj, QEvent* event)
-{
-  printEvent(obj, event);
-  return QObject::eventFilter(obj, event);
+    Application::processEvents();
 }

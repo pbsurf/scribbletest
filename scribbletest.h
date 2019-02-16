@@ -4,10 +4,9 @@
 #include "scribbledoc.h"
 #include "bookmarkview.h"
 
-class ScribbleTest : public QObject
+class ScribbleTest
 {
-  Q_OBJECT
-  friend class MainWindow;
+friend class Application;
 public:
   ScribbleTest(const QString &path);
   ScribbleTest(ScribbleDoc* sd, BookmarkView* bv, ScribbleMode* sm);
@@ -16,12 +15,10 @@ public:
   void runAll(bool runsynctest = false);
   void performanceTest();
   void inputTest();
+  void syncSlaveMsg(QString msg, int level);
 
   // result string to be read by caller
-  fstring resultStr;
-
-private slots:
-  void syncSlaveMsg(QString msg, int level);
+  std::string resultStr;
 
 private:
   ScribbleConfig* scribbleConfig;
@@ -29,13 +26,12 @@ private:
   ScribbleArea* scribbleArea;
   ScribbleMode* scribbleMode;
   BookmarkView* bookmarkArea;
-  QImage* screenImg;
+  Image* screenImg;
   Painter* screenPaint;
   Rect screenRect;
   QString outPath;
   int nFailed;
 
-  QImage extractThumbnail(const QString& filename);
   // shared whiteboard testing
   pugi::xml_document swbXML;
   ScribbleTest* syncSlave;
@@ -79,17 +75,6 @@ private:
   void synctest01();
   void synctest01slave1();
   void synctest01slave2();
-};
-
-// debug event filter - prints name of every event received
-class DebugEventFilter : public QObject
-{
-  Q_OBJECT
-public:
-  static void printEvent(QObject* obj, QEvent* event);
-
-protected:
-  bool eventFilter(QObject* obj, QEvent* event);
 };
 
 #endif
