@@ -263,9 +263,9 @@ void ScribbleTest::runAll(bool runsynctest)
       continue;
     }
 
-    screenPaint->beginFrame();
-    bookmarkArea->doPaintEvent(screenPaint);
-    screenPaint->endFrame();
+    //screenPaint->beginFrame();
+    //bookmarkArea->doPaintEvent(screenPaint);
+    //screenPaint->endFrame();
     screenPaint->beginFrame();
     scribbleArea->doPaintEvent(screenPaint);
     screenPaint->endFrame();
@@ -768,7 +768,7 @@ void ScribbleTest::test4()
 // test setting page properties and growing page
 void ScribbleTest::test5()
 {
-  PageProperties props(600, 800, 30, 30, 30, 0xFFFFFF00, 0x7F0000FF);
+  PageProperties props(600, 800, 30, 30, 30, Color::YELLOW, Color(0, 0, 0xFF, 0x7F));
   ss(0);
   ss(10);
   scribbleDoc->setPageProperties(&props, false, true, false);
@@ -973,7 +973,7 @@ void ScribbleTest::test9()
   ie(0, 0, 0, pen, release);
 
   // Must draw bookmarks so that findBookmark will work
-  //scribbleDoc->document->drawBookmarks(screenPaint, Rect());
+  screenPaint->beginFrame();  bookmarkArea->doPaintEvent(screenPaint);  screenPaint->endFrame();
 
   // drop a bookmark off page, then undo - added because this used to cause crash on undo
   scribbleMode->setMode(MODE_BOOKMARK);
@@ -1120,6 +1120,7 @@ void ScribbleTest::test12()
   ie(60, 60, 0, pen);
   ie(0, 0, 0, pen, release);
   //scribbleDoc->document->drawBookmarks(screenPaint, Rect());
+  screenPaint->beginFrame();  bookmarkArea->doPaintEvent(screenPaint);  screenPaint->endFrame();
   undo();
   // back to our regularly scheduled programming...
   s2(200, 179);
