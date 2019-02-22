@@ -1027,9 +1027,9 @@ void ScribbleTest::test10()
   f2(250, 100);
   doCommand(ID_SELALL);
 
-  scribbleDoc->setPen(ScribblePen(Color::BLUE, -1));
-  scribbleDoc->setPen(ScribblePen(Color::INVALID_COLOR, 2));
-  scribbleDoc->setPen(ScribblePen(Color::INVALID_COLOR, 3));
+  scribbleDoc->setPen(ScribblePen(Color::BLUE, -1, ScribblePen::SELECTION));
+  scribbleDoc->setPen(ScribblePen(Color::INVALID_COLOR, 2, ScribblePen::SELECTION));
+  scribbleDoc->setPen(ScribblePen(Color::INVALID_COLOR, 3, ScribblePen::SELECTION));
   undo();
 
   // Note pen not longer changed when selection active
@@ -1179,7 +1179,7 @@ void ScribbleTest::test13()
   }
 
   // change page properties - apply to all
-  PageProperties props(0, 0, 30, 30, 30, 0xFFFFFF00, 0x7F0000FF);
+  PageProperties props(0, 0, 30, 30, 30, Color::YELLOW, Color(0, 0, 0xFF, 0x7F));
   scribbleDoc->setPageProperties(&props, true, false, false);
   // save and reopen
   if(!syncSlave) {
