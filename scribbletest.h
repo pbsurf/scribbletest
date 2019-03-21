@@ -72,6 +72,7 @@ private:
   void test12();
   void test13();
   void test14();
+  void test15();
   void synctest01();
   void synctest01slave1();
   void synctest01slave2();

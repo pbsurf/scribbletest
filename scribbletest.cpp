@@ -191,6 +191,7 @@ void ScribbleTest::runAll(bool runsynctest)
     &ScribbleTest::test12,
     &ScribbleTest::test13,
     &ScribbleTest::test14,
+    &ScribbleTest::test15,
     &ScribbleTest::synctest01
   };
   unsigned int totaltests = sizeof(tests)/sizeof(tests[0]);
@@ -1254,6 +1255,28 @@ void ScribbleTest::test14()
     // delete the autosave files
     ScribbleDoc::deleteDocument(filename.c_str());
   }
+}
+
+// add snap to grid and line drawing tests too!
+void ScribbleTest::test15()
+{
+  scribbleArea->gotoPos(0, Point(0,0));
+  s2(200, 179);
+  f2(250, 182);
+  hr(300, 181);
+
+  // test z-order for highlighter (draw under)
+  scribbleDoc->setPen(ScribblePen(Color::YELLOW, 20, ScribblePen::PEN, 0, ScribblePen::DRAW_UNDER));
+  s2(250, 190);
+  undo();
+  redo();
+
+  s2(310, 180);
+  scribbleMode->setMode(MODE_ERASESTROKE);
+  ie(300, 180, 0, pen, press);
+  ie(300, 180, 0, pen);
+  ie(0, 0, 0, pen, release);
+  undo();
 }
 
 // back and forth test for whiteboard
