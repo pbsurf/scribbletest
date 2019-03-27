@@ -8,54 +8,49 @@
    <int name="pageNum" value="0" />
    <int name="savePrompt" value="1" />
    <int name="test_dirtyCount" value="3" />
-   <int name="test_loadErrors" value="1" />
    <float name="xOffset" value="-10" />
    <float name="yOffset" value="-10" />
-   <ruling name="default">
-    <g class="ruleline">
-     <g class="rulepattern" shape-rendering="crispEdges">
-      <pattern id="pattern0" class="rule_y" x="0.000" y="0.000" width="0.000" height="40.000" patternUnits="userSpaceOnUse">
-       <path vector-effect="non-scaling-stroke" fill="none" stroke="#000000" stroke-opacity="0.000" stroke-width="1.000" d="M0.000 40.000 L 65535.000 40.000" />
-      </pattern>
-      <rect x="0.000" y="0.000" width="0.000" height="0.000" fill="url(#pattern0)" />
-     </g>
-     <g class="rulepattern" shape-rendering="crispEdges">
-      <pattern id="pattern1" class="rule_x rule_margin" x="100.000" y="0.000" width="0.000" height="0.000" patternUnits="userSpaceOnUse">
-       <path vector-effect="non-scaling-stroke" fill="none" stroke="#FF0000" stroke-width="1.000" d="M0.000 0.000 L 0.000 65535.000" />
-      </pattern>
-      <rect x="100.000" y="0.000" width="-100.000" height="0.000" fill="url(#pattern1)" />
-     </g>
-    </g>
-   </ruling>
   </script>
  </head>
  <body>
   
-  <img id='thumbnail' style='display:none;' src='data:image/png;base64,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'/>
+  <img id='thumbnail' style='display:none;' src='data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAPAAAAGQCAYAAACQ1u18AAAF50lEQVR4Ae3du06bWRhG4Q2BgTQERiBBrof7v4xIAwVHmzMe7GI0U0RDnOL3kp6ni9K4WcoXs99ka/FhTOXHjzG+fx/AerZTnxb4DwFDmIAhTMAQJmAIEzCECRjCBAxhAoYwAUOYgCFsZ/kceSpf/hrjbQDr2pl8S2DLAGtzQkOYgCFMwBAmYAgTMIQJGMIEDGEChjABQ5iAIUzAEGbMAGHGDBDmhIYwAUOYgCFMwBAmYAgTMIQJGMIEDGEChjABQ5iAIcyYAcKMGSDMCQ1hAoYwAUOYgCFMwBAmYAgTMIQJGMIEDGEChjABQ5gxA4QZM0CYExrCBAxhAoYwAUOYgCFMwBAmYAgTMIQJGMIEDGHeQkPYRryFvru7G/v7+2N3d3cAnzf5CX1zczNeXl7G5eXlmM1mU38cSJk04Nl8Pp6fn8fR0dE4OTkZDw8PA/i8yQJ+fHwcd/f3q3i3trZW5/Px8fEAPm+ygK+vr8fht29jZ2dnAOuZLODT09Oxv7c3gPX5OTCECRjCBAxhAoawjQr4/f199aBj+Q31YrHYpI8GG2mjAr66uhp7H99Mb29vj4uLi9XPioGf25gxw/X11Ue4X8bBwcHq109Pf4y3t/0B/NxGjBmW76G/fh3j6OjwX78hXvg/k5/Qt7e34/X1dfWkEvg1kwZ8P5t9nMpP4oU1TRbwfD5frZGW8S6/tAJ+3WTlLP/e++fhoTED/IbJAj47O/MvcMBvcrtCmIAhTMAQJmAIEzCECRjC/M8MELYRYwZgPU5oCBMwhAkYwgQMYQKGMAFDmIAhTMAQJmAIEzCECRjCjBkgzJgBwpzQECZgCBMwhAkYwgQMYQKGMAFDmIAhTMAQJmAIEzCEGTNAmDEDhDmhIUzAECZgCBMwhAkYwgQMYQKGMAFDmIAhTMAQ5i00hHkLDWFOaAgTMIQJGMIEDGEChjABQ5iAIUzAECZgCBMwhAkYwowZIMyYAcKc0BAmYAgTMIQJGMIEDGEChjABQ5iAIUzAECZgCBMwhBkzQJgxA4Q5oSFMwBAmYAgTMIQJGMIEDGEChjABQ5iAIUzAECZgCDNmgDBjBghzQkOYgCFMwBAmYAgTMIQJGMIEDGEChjABQ5iAIUzAEGbMAGHGDBDmhIYwAUOYgCFMwBAmYAgTMIQJGMIEDGEChjABQ5i30BDmLTSEOaEhTMAQJmAIEzCECRjCBAxhAoYwAUOYgCFMwBAmYAgzZoAwYwYIc0JDmIAhTMAQJmAIEzCECRjCBAxhAoYwAUOYgCFMwBBmzABhxgwQ5oSGMAFDmIAhTMAQJmAIEzCECRjCBAxhAoYwAUOYgCHMmAHCjBkgzAkNYQKGMAFDmIAhTMAQJmAIEzCECRjCBAxhAoYwAUOYMQOEGTNAmBMawgQMYQKGMAFDmIAhTMAQJmAIEzCECRjCBAxh3kJDmLfQEOaEhjABQ5iAIUzAECZgCBMwhAkYwgQMYQKGMAFDmIAhzJgBwowZIMwJDWEChjABQ5iAIUzAECZgCBMwhAkYwgQMYQKGMAFDmDEDhBkzQJgTGsIEDGEChjABQ5iAIUzAECZgCBMwhAkYwgQMYQKGMGMGCDNmgDAnNIQJGMIEDGEChjABQ5iAIUzAECZgCBMwhAkYwgQMYcYMEGbMAGFOaAgTMIQJGMIEDGEChjABQ5iAIUzAECZgCBMwhHkLDWHeQkOYExrCBAxhAoYwAUOYgCFMwBAmYAjbOj8/X6Q+MfAPfwJDmIAhTMAQJmAIEzCECRjCBAxhAoYwAUOYgCFMwBAmYAgTMIQJGMIEDGEChjABQ5iAIUzAECZgCBMwhAkYwgQMYQKGMAFDmIAhTMAQJmAIEzCECRjCBAxhAoYwAUOYgCFMwBAmYAgTMIQJGMIEDGEChjABQ5iAIUzAECZgCBMwhAkYwgQMYQKGMAFDmIAhTMAQJmAIEzCECRjCBAxhAoYwAUOYgCFMwBAmYAgTMIQJGMIEDGEChjABQ5iAIUzAECZgCBMwhAkYwgQMYX8DBS/EWjezZKEAAAAASUVORK5CYII='/>
 
-<svg width='768px' height='1024px' xmlns='http://www.w3.org/2000/svg' xmlns:xlink='http://www.w3.org/1999/xlink'>
-<defs> <style type='text/css'><![CDATA[
-  path { stroke-linecap: round; stroke-linejoin: round; }
-]]></style> </defs>
-<g id='page_1' width='768.000' height='1024.000' xruling='0.000' yruling='40.000' marginLeft='100.000' papercolor='#FFFFFF' rulecolor='#FF0000FF'>
-<rect id='pagebg' width='768.000' height='1024.000' fill='#FFFFFF'/>
-<g class='ruleline'>
-<g class='rulepattern' shape-rendering='crispEdges'>
-<pattern id='pattern0' class='rule_y' x='0.000' y='0.000' width='768.000' height='40.000' patternUnits='userSpaceOnUse'>
-<path vector-effect='non-scaling-stroke' fill='none' stroke='#0000FF' stroke-width='1.000' d='M0.000 40.000 L 65535.000 40.000'/>
-</pattern>
-<rect x='0.000' y='0.000' width='768.000' height='1024.000' fill='url(#pattern0)'/>
-</g>
-<g class='rulepattern' shape-rendering='crispEdges'>
-<pattern id='pattern1' class='rule_x rule_margin' x='100.000' y='0.000' width='668.000' height='1024.000' patternUnits='userSpaceOnUse'>
-<path vector-effect='non-scaling-stroke' fill='none' stroke='#FF0000' stroke-width='1.000' d='M0.000 0.000 L 0.000 65535.000'/>
-</pattern>
-<rect x='100.000' y='0.000' width='668.000' height='1024.000' fill='url(#pattern1)'/>
-</g>
-</g>
-<path __comx='108.100' __comy='242.467' fill='none' stroke='#000000' stroke-width='1.000' d='M94.400 254.400 L 114.500 232.200 121.800 237.300'/>
-<path __comx='103.100' __comy='208.022' fill='none' stroke='#000000' stroke-width='1.000' d='M94.400 214.400 L 104.500 202.200 111.800 207.300'/>
-</g>
+<svg width="768" height="1024" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" version="1.2" baseProfile="tiny">
+  <g class="write-content write-v3" transform="translate(0.500,0.500)" rulecolor="#FF0000FF" height="1024.000" marginLeft="100.000" width="768.000" xruling="0.000" papercolor="#FFFFFF" yruling="40.000">
+    <g id="write-ruling" class="ruleline" shape-rendering="crispEdges" fill="none" vector-effect="non-scaling-stroke">
+      <rect id="pagerect" fill="#FFFFFF" x="0" y="0" width="768" height="1024" />
+      <line id="yrule_1" stroke="#0000FF" stroke-width="1" x1="0" y1="40" x2="768" y2="40" />
+      <line stroke="#0000FF" stroke-width="1" x1="0" y1="80" x2="768" y2="80" />
+      <line stroke="#0000FF" stroke-width="1" x1="0" y1="120" x2="768" y2="120" />
+      <line stroke="#0000FF" stroke-width="1" x1="0" y1="160" x2="768" y2="160" />
+      <line stroke="#0000FF" stroke-width="1" x1="0" y1="200" x2="768" y2="200" />
+      <line stroke="#0000FF" stroke-width="1" x1="0" y1="240" x2="768" y2="240" />
+      <line stroke="#0000FF" stroke-width="1" x1="0" y1="280" x2="768" y2="280" />
+      <line stroke="#0000FF" stroke-width="1" x1="0" y1="320" x2="768" y2="320" />
+      <line stroke="#0000FF" stroke-width="1" x1="0" y1="360" x2="768" y2="360" />
+      <line stroke="#0000FF" stroke-width="1" x1="0" y1="400" x2="768" y2="400" />
+      <line stroke="#0000FF" stroke-width="1" x1="0" y1="440" x2="768" y2="440" />
+      <line stroke="#0000FF" stroke-width="1" x1="0" y1="480" x2="768" y2="480" />
+      <line stroke="#0000FF" stroke-width="1" x1="0" y1="520" x2="768" y2="520" />
+      <line stroke="#0000FF" stroke-width="1" x1="0" y1="560" x2="768" y2="560" />
+      <line stroke="#0000FF" stroke-width="1" x1="0" y1="600" x2="768" y2="600" />
+      <line stroke="#0000FF" stroke-width="1" x1="0" y1="640" x2="768" y2="640" />
+      <line stroke="#0000FF" stroke-width="1" x1="0" y1="680" x2="768" y2="680" />
+      <line stroke="#0000FF" stroke-width="1" x1="0" y1="720" x2="768" y2="720" />
+      <line stroke="#0000FF" stroke-width="1" x1="0" y1="760" x2="768" y2="760" />
+      <line stroke="#0000FF" stroke-width="1" x1="0" y1="800" x2="768" y2="800" />
+      <line stroke="#0000FF" stroke-width="1" x1="0" y1="840" x2="768" y2="840" />
+      <line stroke="#0000FF" stroke-width="1" x1="0" y1="880" x2="768" y2="880" />
+      <line stroke="#0000FF" stroke-width="1" x1="0" y1="920" x2="768" y2="920" />
+      <line stroke="#0000FF" stroke-width="1" x1="0" y1="960" x2="768" y2="960" />
+      <line stroke="#0000FF" stroke-width="1" x1="0" y1="1000" x2="768" y2="1000" />
+      <line id="leftmargin" stroke="#FF0000" stroke-width="1" x1="100" y1="0" x2="100" y2="1024" />
+    </g>
+    <path stroke="#000000" stroke-width="1" transform="translate(0.000,40.000)" d="M94.400 214.400 L114.500 192.200 121.800 197.300" />
+    <path stroke="#000000" stroke-width="1" d="" />
+    <path class="write-stroke" fill="none" stroke="#000000" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" transform="translate(0.000,40.000)" __comy="208.189" __comx="103.100" d="M94.400 174.400 L104.500 162.200 111.800 167.300" />
+  </g>
 </svg>
 
  </body>

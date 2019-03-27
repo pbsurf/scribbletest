@@ -7,86 +7,84 @@
    <int name="docFormatVersion" value="1" />
    <int name="pageColor" value="-1" />
    <int name="pageNum" value="0" />
+   <int name="ruleColor" value="-65536" />
    <int name="savePrompt" value="1" />
    <int name="test_dirtyCount" value="26" />
+   <float name="marginLeft" value="100" />
    <float name="pageHeight" value="800" />
    <float name="pageWidth" value="700" />
    <float name="xOffset" value="0" />
+   <float name="xRuling" value="0" />
    <float name="yOffset" value="0" />
-   <ruling name="default">
-    <g class="ruleline">
-     <g class="rulepattern" shape-rendering="crispEdges">
-      <pattern id="pattern0" class="rule_y" x="0.000" y="0.000" width="700.000" height="40.000" patternUnits="userSpaceOnUse">
-       <path vector-effect="non-scaling-stroke" fill="none" stroke="#0000FF" stroke-width="1.000" d="M0.000 40.000 L 65535.000 40.000" />
-      </pattern>
-      <rect x="0.000" y="0.000" width="700.000" height="800.000" fill="url(#pattern0)" />
-     </g>
-     <g class="rulepattern" shape-rendering="crispEdges">
-      <pattern id="pattern1" class="rule_x rule_margin" x="100.000" y="0.000" width="600.000" height="800.000" patternUnits="userSpaceOnUse">
-       <path vector-effect="non-scaling-stroke" fill="none" stroke="#FF0000" stroke-width="1.000" d="M0.000 0.000 L 0.000 65535.000" />
-      </pattern>
-      <rect x="100.000" y="0.000" width="600.000" height="800.000" fill="url(#pattern1)" />
-     </g>
-    </g>
-   </ruling>
+   <float name="yRuling" value="40" />
   </script>
  </head>
  <body>
   
-  <img id='thumbnail' style='display:none;' src='data:image/png;base64,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'/>
+  <img id='thumbnail' style='display:none;' src='data:image/png;base64,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'/>
 
-<svg width='700px' height='800px' xmlns='http://www.w3.org/2000/svg' xmlns:xlink='http://www.w3.org/1999/xlink'>
-<defs> <style type='text/css'><![CDATA[
-  path { stroke-linecap: round; stroke-linejoin: round; }
-]]></style> </defs>
-<g id='page_1' width='700.000' height='800.000' xruling='0.000' yruling='40.000' marginLeft='100.000' papercolor='#FFFFFF' rulecolor='#FF0000FF'>
-<rect id='pagebg' width='700.000' height='800.000' fill='#FFFFFF'/>
-<g class='ruleline'>
-<g class='rulepattern' shape-rendering='crispEdges'>
-<pattern id='pattern0' class='rule_y' x='0.000' y='0.000' width='700.000' height='40.000' patternUnits='userSpaceOnUse'>
-<path vector-effect='non-scaling-stroke' fill='none' stroke='#0000FF' stroke-width='1.000' d='M0.000 40.000 L 65535.000 40.000'/>
-</pattern>
-<rect x='0.000' y='0.000' width='700.000' height='800.000' fill='url(#pattern0)'/>
-</g>
-<g class='rulepattern' shape-rendering='crispEdges'>
-<pattern id='pattern1' class='rule_x rule_margin' x='100.000' y='0.000' width='600.000' height='800.000' patternUnits='userSpaceOnUse'>
-<path vector-effect='non-scaling-stroke' fill='none' stroke='#FF0000' stroke-width='1.000' d='M0.000 0.000 L 0.000 65535.000'/>
-</pattern>
-<rect x='100.000' y='0.000' width='600.000' height='800.000' fill='url(#pattern1)'/>
-</g>
-</g>
-<path __comx='200.050' __comy='370.011' fill='none' stroke='#000000' stroke-width='1.000' d='M210.000 365.200 L 190.100 380.100 209.800 395.100'/>
-<path __comx='600.050' __comy='410.011' fill='none' stroke='#000000' stroke-width='1.000' d='M610.000 405.200 L 590.100 420.100 609.800 435.100'/>
-<path __comx='200.050' __comy='450.011' fill='none' stroke='#000000' stroke-width='1.000' d='M210.000 445.200 L 190.100 460.100 209.800 475.100'/>
-<path __comx='200.050' __comy='50.011' fill='none' stroke='#000000' stroke-width='1.000' d='M210.000 45.200 L 190.100 60.100 209.800 75.100'/>
-<path __comx='250.050' __comy='90.011' fill='none' stroke='#000000' stroke-width='1.000' d='M260.000 85.200 L 240.100 100.100 259.800 115.100'/>
-<path __comx='600.050' __comy='90.011' fill='none' stroke='#000000' stroke-width='1.000' d='M610.000 85.200 L 590.100 100.100 609.800 115.100'/>
-</g>
+<svg width="700" height="800" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" version="1.2" baseProfile="tiny">
+  <g class="write-content write-v3" rulecolor="#FF0000FF" height="800.000" marginLeft="100.000" width="700.000" xruling="0.000" papercolor="#FFFFFF" yruling="40.000">
+    <g id="write-ruling" class="ruleline" shape-rendering="crispEdges" fill="none" vector-effect="non-scaling-stroke">
+      <rect id="pagerect" fill="#FFFFFF" x="0" y="0" width="700" height="800" />
+      <line id="yrule_1" stroke="#0000FF" stroke-width="1" x1="0" y1="40" x2="700" y2="40" />
+      <line stroke="#0000FF" stroke-width="1" x1="0" y1="80" x2="700" y2="80" />
+      <line stroke="#0000FF" stroke-width="1" x1="0" y1="120" x2="700" y2="120" />
+      <line stroke="#0000FF" stroke-width="1" x1="0" y1="160" x2="700" y2="160" />
+      <line stroke="#0000FF" stroke-width="1" x1="0" y1="200" x2="700" y2="200" />
+      <line stroke="#0000FF" stroke-width="1" x1="0" y1="240" x2="700" y2="240" />
+      <line stroke="#0000FF" stroke-width="1" x1="0" y1="280" x2="700" y2="280" />
+      <line stroke="#0000FF" stroke-width="1" x1="0" y1="320" x2="700" y2="320" />
+      <line stroke="#0000FF" stroke-width="1" x1="0" y1="360" x2="700" y2="360" />
+      <line stroke="#0000FF" stroke-width="1" x1="0" y1="400" x2="700" y2="400" />
+      <line stroke="#0000FF" stroke-width="1" x1="0" y1="440" x2="700" y2="440" />
+      <line stroke="#0000FF" stroke-width="1" x1="0" y1="480" x2="700" y2="480" />
+      <line stroke="#0000FF" stroke-width="1" x1="0" y1="520" x2="700" y2="520" />
+      <line stroke="#0000FF" stroke-width="1" x1="0" y1="560" x2="700" y2="560" />
+      <line stroke="#0000FF" stroke-width="1" x1="0" y1="600" x2="700" y2="600" />
+      <line stroke="#0000FF" stroke-width="1" x1="0" y1="640" x2="700" y2="640" />
+      <line stroke="#0000FF" stroke-width="1" x1="0" y1="680" x2="700" y2="680" />
+      <line stroke="#0000FF" stroke-width="1" x1="0" y1="720" x2="700" y2="720" />
+      <line stroke="#0000FF" stroke-width="1" x1="0" y1="760" x2="700" y2="760" />
+      <line id="leftmargin" stroke="#FF0000" stroke-width="1" x1="100" y1="0" x2="100" y2="800" />
+    </g>
+    <path class="write-stroke" fill="none" stroke="#000000" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" __comy="370.178" __comx="200.050" d="M210.000 365.200 L190.100 380.100 209.800 395.100" />
+    <path class="write-stroke" fill="none" stroke="#000000" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" __comy="410.178" __comx="600.050" d="M610.000 405.200 L590.100 420.100 609.800 435.100" />
+    <path class="write-stroke" fill="none" stroke="#000000" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" __comy="450.178" __comx="200.050" d="M210.000 445.200 L190.100 460.100 209.800 475.100" />
+    <path class="write-stroke" fill="none" stroke="#000000" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" __comy="50.178" __comx="200.050" d="M210.000 45.200 L190.100 60.100 209.800 75.100" />
+    <path class="write-stroke" fill="none" stroke="#000000" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" __comy="90.178" __comx="250.050" d="M260.000 85.200 L240.100 100.100 259.800 115.100" />
+    <path class="write-stroke" fill="none" stroke="#000000" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" __comy="90.178" __comx="600.050" d="M610.000 85.200 L590.100 100.100 609.800 115.100" />
+  </g>
 </svg>
-<svg width='700px' height='800px' xmlns='http://www.w3.org/2000/svg' xmlns:xlink='http://www.w3.org/1999/xlink'>
-<defs> <style type='text/css'><![CDATA[
-  path { stroke-linecap: round; stroke-linejoin: round; }
-]]></style> </defs>
-<g id='page_1' width='700.000' height='800.000' xruling='0.000' yruling='40.000' marginLeft='100.000' papercolor='#FFFFFF' rulecolor='#FF0000FF'>
-<rect id='pagebg' width='700.000' height='800.000' fill='#FFFFFF'/>
-<g class='ruleline'>
-<g class='rulepattern' shape-rendering='crispEdges'>
-<pattern id='pattern0' class='rule_y' x='0.000' y='0.000' width='700.000' height='40.000' patternUnits='userSpaceOnUse'>
-<path vector-effect='non-scaling-stroke' fill='none' stroke='#0000FF' stroke-width='1.000' d='M0.000 40.000 L 65535.000 40.000'/>
-</pattern>
-<rect x='0.000' y='0.000' width='700.000' height='800.000' fill='url(#pattern0)'/>
-</g>
-<g class='rulepattern' shape-rendering='crispEdges'>
-<pattern id='pattern1' class='rule_x rule_margin' x='100.000' y='0.000' width='600.000' height='800.000' patternUnits='userSpaceOnUse'>
-<path vector-effect='non-scaling-stroke' fill='none' stroke='#FF0000' stroke-width='1.000' d='M0.000 0.000 L 0.000 65535.000'/>
-</pattern>
-<rect x='100.000' y='0.000' width='600.000' height='800.000' fill='url(#pattern1)'/>
-</g>
-</g>
-<path __comx='165.050' __comy='450.011' fill='none' stroke='#000000' stroke-width='1.000' d='M175.000 445.200 L 155.100 460.100 174.800 475.100'/>
-<path __comx='215.050' __comy='450.011' fill='none' stroke='#000000' stroke-width='1.000' d='M225.000 445.200 L 205.100 460.100 224.800 475.100'/>
-<path __comx='264.869' __comy='450.014' fill='#000000' stroke='none' stroke-width='1.200' d='M274.817 444.955 L 254.554 460.098 274.527 475.458 275.073 474.742 255.646 460.102 275.183 445.445 Z'/>
-</g>
+<svg width="700" height="800" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" version="1.2" baseProfile="tiny">
+  <g class="write-content write-v3" rulecolor="#FF0000FF" height="800.000" marginLeft="100.000" width="700.000" xruling="0.000" papercolor="#FFFFFF" yruling="40.000">
+    <g id="write-ruling" class="ruleline" shape-rendering="crispEdges" fill="none" vector-effect="non-scaling-stroke">
+      <rect id="pagerect" fill="#FFFFFF" x="0" y="0" width="700" height="800" />
+      <line id="yrule_1" stroke="#0000FF" stroke-width="1" x1="0" y1="40" x2="700" y2="40" />
+      <line stroke="#0000FF" stroke-width="1" x1="0" y1="80" x2="700" y2="80" />
+      <line stroke="#0000FF" stroke-width="1" x1="0" y1="120" x2="700" y2="120" />
+      <line stroke="#0000FF" stroke-width="1" x1="0" y1="160" x2="700" y2="160" />
+      <line stroke="#0000FF" stroke-width="1" x1="0" y1="200" x2="700" y2="200" />
+      <line stroke="#0000FF" stroke-width="1" x1="0" y1="240" x2="700" y2="240" />
+      <line stroke="#0000FF" stroke-width="1" x1="0" y1="280" x2="700" y2="280" />
+      <line stroke="#0000FF" stroke-width="1" x1="0" y1="320" x2="700" y2="320" />
+      <line stroke="#0000FF" stroke-width="1" x1="0" y1="360" x2="700" y2="360" />
+      <line stroke="#0000FF" stroke-width="1" x1="0" y1="400" x2="700" y2="400" />
+      <line stroke="#0000FF" stroke-width="1" x1="0" y1="440" x2="700" y2="440" />
+      <line stroke="#0000FF" stroke-width="1" x1="0" y1="480" x2="700" y2="480" />
+      <line stroke="#0000FF" stroke-width="1" x1="0" y1="520" x2="700" y2="520" />
+      <line stroke="#0000FF" stroke-width="1" x1="0" y1="560" x2="700" y2="560" />
+      <line stroke="#0000FF" stroke-width="1" x1="0" y1="600" x2="700" y2="600" />
+      <line stroke="#0000FF" stroke-width="1" x1="0" y1="640" x2="700" y2="640" />
+      <line stroke="#0000FF" stroke-width="1" x1="0" y1="680" x2="700" y2="680" />
+      <line stroke="#0000FF" stroke-width="1" x1="0" y1="720" x2="700" y2="720" />
+      <line stroke="#0000FF" stroke-width="1" x1="0" y1="760" x2="700" y2="760" />
+      <line id="leftmargin" stroke="#FF0000" stroke-width="1" x1="100" y1="0" x2="100" y2="800" />
+    </g>
+    <path class="write-stroke" fill="none" stroke="#000000" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" transform="translate(15.000,80.000)" __comy="490.178" __comx="165.050" d="M160.000 405.200 L140.100 420.100 159.800 435.100" />
+    <path class="write-stroke" fill="none" stroke="#000000" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" transform="translate(15.000,80.000)" __comy="490.178" __comx="215.050" d="M210.000 405.200 L190.100 420.100 209.800 435.100" />
+    <path class="write-fstroke" fill="#000000" stroke-width="1.200" transform="translate(15.000,80.000)" __comy="490.012" __comx="264.976" d="M259.817 404.955 L239.773 419.663 239.769 420.534 259.527 435.458 260.073 434.742 240.431 419.666 240.427 420.537 260.183 405.445" />
+  </g>
 </svg>
 
  </body>

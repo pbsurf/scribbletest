@@ -6,43 +6,56 @@
   <script type="text/writeconfig">
    <int name="docFormatVersion" value="1" />
    <int name="pageNum" value="0" />
-   <float name="xOffset" value="-10" />
-   <float name="yOffset" value="-10" />
+   <int name="savePrompt" value="1" />
+   <int name="test_dirtyCount" value="9" />
+   <float name="xOffset" value="0" />
+   <float name="yOffset" value="0" />
   </script>
  </head>
  <body>
   
-  <img id='thumbnail' style='display:none;' src='data:image/png;base64,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'/>
+  <img id='thumbnail' style='display:none;' src='data:image/png;base64,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'/>
 
-<svg width='768px' height='1024px' xmlns='http://www.w3.org/2000/svg' xmlns:xlink='http://www.w3.org/1999/xlink'>
-<defs> <style type='text/css'><![CDATA[
-  path { stroke-linecap: round; stroke-linejoin: round; }
-]]></style> </defs>
-<g id='page_1' width='768.000' height='1024.000' xruling='0.000' yruling='40.000' marginLeft='100.000' papercolor='#FFFFFF' rulecolor='#FF0000FF'>
-<rect id='pagebg' width='768.000' height='1024.000' fill='#FFFFFF'/>
-<g class='ruleline'>
-<g class='rulepattern' shape-rendering='crispEdges'>
-<pattern id='pattern0' class='rule_y' x='0.000' y='0.000' width='768.000' height='40.000' patternUnits='userSpaceOnUse'>
-<path vector-effect='non-scaling-stroke' fill='none' stroke='#0000FF' stroke-width='1.000' d='M0.000 40.000 L 65535.000 40.000'/>
-</pattern>
-<rect x='0.000' y='0.000' width='768.000' height='1024.000' fill='url(#pattern0)'/>
-</g>
-<g class='rulepattern' shape-rendering='crispEdges'>
-<pattern id='pattern1' class='rule_x rule_margin' x='100.000' y='0.000' width='668.000' height='1024.000' patternUnits='userSpaceOnUse'>
-<path vector-effect='non-scaling-stroke' fill='none' stroke='#FF0000' stroke-width='1.000' d='M0.000 0.000 L 0.000 65535.000'/>
-</pattern>
-<rect x='100.000' y='0.000' width='668.000' height='1024.000' fill='url(#pattern1)'/>
-</g>
-</g>
-<g class='hyperref'>
-<path __comx='169.850' __comy='170.011' fill='none' stroke='#000000' stroke-width='1.000' d='M159.900 165.200 L 179.800 180.100 160.300 195.100'/>
-<path __comx='179.950' __comy='170.489' fill='none' stroke='#000000' stroke-width='1.000' d='M170.000 166.200 L 189.900 180.100 170.200 192.400'/>
-<a xlink:href='http://www.styluslabs.com' target='_top'><rect x='159.400' y='164.700' width='31.000' height='30.900' stroke-opacity='0' fill-opacity='0'/></a>
-</g>
-<path __comx='220.050' __comy='170.011' fill='none' stroke='#000000' stroke-width='1.000' d='M230.000 165.200 L 210.100 180.100 229.800 195.100'/>
-<path __comx='249.869' __comy='90.014' fill='#000000' stroke='none' stroke-width='1.200' d='M259.817 84.955 L 239.554 100.098 259.527 115.458 260.073 114.742 240.646 100.102 260.183 85.445 Z'/>
-<path __comx='550.050' __comy='540.011' fill='none' stroke='#000000' stroke-width='1.000' d='M560.000 535.200 L 540.100 550.100 559.800 565.100'/>
-</g>
+<svg width="768" height="1024" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" version="1.2" baseProfile="tiny">
+  <g class="write-content write-v3" rulecolor="#FF0000FF" height="1024.000" marginLeft="100.000" width="768.000" xruling="0.000" papercolor="#FFFFFF" yruling="40.000">
+    <g id="write-ruling" class="ruleline" shape-rendering="crispEdges" fill="none" vector-effect="non-scaling-stroke">
+      <rect id="pagerect" fill="#FFFFFF" x="0" y="0" width="768" height="1024" />
+      <line id="yrule_1" stroke="#0000FF" stroke-width="1" x1="0" y1="40" x2="768" y2="40" />
+      <line stroke="#0000FF" stroke-width="1" x1="0" y1="80" x2="768" y2="80" />
+      <line stroke="#0000FF" stroke-width="1" x1="0" y1="120" x2="768" y2="120" />
+      <line stroke="#0000FF" stroke-width="1" x1="0" y1="160" x2="768" y2="160" />
+      <line stroke="#0000FF" stroke-width="1" x1="0" y1="200" x2="768" y2="200" />
+      <line stroke="#0000FF" stroke-width="1" x1="0" y1="240" x2="768" y2="240" />
+      <line stroke="#0000FF" stroke-width="1" x1="0" y1="280" x2="768" y2="280" />
+      <line stroke="#0000FF" stroke-width="1" x1="0" y1="320" x2="768" y2="320" />
+      <line stroke="#0000FF" stroke-width="1" x1="0" y1="360" x2="768" y2="360" />
+      <line stroke="#0000FF" stroke-width="1" x1="0" y1="400" x2="768" y2="400" />
+      <line stroke="#0000FF" stroke-width="1" x1="0" y1="440" x2="768" y2="440" />
+      <line stroke="#0000FF" stroke-width="1" x1="0" y1="480" x2="768" y2="480" />
+      <line stroke="#0000FF" stroke-width="1" x1="0" y1="520" x2="768" y2="520" />
+      <line stroke="#0000FF" stroke-width="1" x1="0" y1="560" x2="768" y2="560" />
+      <line stroke="#0000FF" stroke-width="1" x1="0" y1="600" x2="768" y2="600" />
+      <line stroke="#0000FF" stroke-width="1" x1="0" y1="640" x2="768" y2="640" />
+      <line stroke="#0000FF" stroke-width="1" x1="0" y1="680" x2="768" y2="680" />
+      <line stroke="#0000FF" stroke-width="1" x1="0" y1="720" x2="768" y2="720" />
+      <line stroke="#0000FF" stroke-width="1" x1="0" y1="760" x2="768" y2="760" />
+      <line stroke="#0000FF" stroke-width="1" x1="0" y1="800" x2="768" y2="800" />
+      <line stroke="#0000FF" stroke-width="1" x1="0" y1="840" x2="768" y2="840" />
+      <line stroke="#0000FF" stroke-width="1" x1="0" y1="880" x2="768" y2="880" />
+      <line stroke="#0000FF" stroke-width="1" x1="0" y1="920" x2="768" y2="920" />
+      <line stroke="#0000FF" stroke-width="1" x1="0" y1="960" x2="768" y2="960" />
+      <line stroke="#0000FF" stroke-width="1" x1="0" y1="1000" x2="768" y2="1000" />
+      <line id="leftmargin" stroke="#FF0000" stroke-width="1" x1="100" y1="0" x2="100" y2="1024" />
+    </g>
+    <path class="write-stroke" fill="none" stroke="#FFFF00" stroke-width="20" stroke-linecap="round" stroke-linejoin="round" __comy="170.178" __comx="310.050" d="M320.000 165.200 L300.100 180.100 319.800 195.100" />
+    <path class="write-stroke" fill="none" stroke="#FFFF00" stroke-width="20" stroke-linecap="round" stroke-linejoin="round" __comy="180.178" __comx="250.050" d="M260.000 175.200 L240.100 190.100 259.800 205.100" />
+    <path class="write-stroke" fill="none" stroke="#000000" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" __comy="180.702" __comx="200.050" d="M210.000 164.200 L190.100 179.100 209.800 194.100" />
+    <path class="write-fstroke" fill="#000000" stroke-width="1.200" __comy="180.702" __comx="249.976" d="M259.817 166.955 L239.773 181.663 239.769 182.534 259.527 197.458 260.073 196.742 240.431 181.666 240.427 182.537 260.183 167.445" />
+    <a class="hyperref" target="_top" xlink:href="http://www.styluslabs.com">
+      <path class="write-stroke" fill="none" stroke="#000000" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" __comy="180.702" __comx="299.850" d="M289.900 166.200 L309.800 181.100 290.300 196.100" />
+      <path class="write-stroke" fill="none" stroke="#000000" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" __comy="180.702" __comx="309.950" d="M300.000 167.200 L319.900 181.100 300.200 193.400" />
+    </a>
+  </g>
 </svg>
 
  </body>

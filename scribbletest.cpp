@@ -53,9 +53,10 @@ ScribbleTest::ScribbleTest(const QString& path)
   scribbleMode->setRuled(true);
   scribbleMode->setMode(MODE_STROKE);
   scribbleDoc = new ScribbleDoc(NULL, scribbleConfig, scribbleMode);
-  scribbleArea = new ScribbleArea(scribbleDoc);
+  scribbleArea = new ScribbleArea();
   scribbleDoc->addArea(scribbleArea);
-  bookmarkArea = new BookmarkView(scribbleConfig, scribbleDoc);
+  bookmarkArea = new BookmarkView(scribbleConfig);
+  bookmarkArea->setScribbleDoc(scribbleDoc);
   syncSlave = NULL;
   waitForSyncDone = false;
   outPath = path;
@@ -229,7 +230,7 @@ void ScribbleTest::runAll(bool runsynctest)
     // reset mode
     scribbleMode->setRuled(true);
     scribbleMode->setMode(MODE_STROKE);
-    scribbleDoc->setPen(ScribblePen(Color::BLACK, 1, ScribblePen::PEN, 0));
+    scribbleDoc->application->setPen(ScribblePen(Color::BLACK, 1, 0));
     // prevent unintended updates while inspecting:
     scribbleDoc->cfg->set("savePrompt", true);
 
@@ -331,7 +332,7 @@ void ScribbleTest::performanceTest()
 {
   scribbleArea->gotoPos(0, Point(0,0));
   scribbleMode->setMode(MODE_STROKE);
-  scribbleDoc->setPen(ScribblePen(Color::BLACK, 1, ScribblePen::PEN, 2));
+  scribbleDoc->application->setPen(ScribblePen(Color::BLACK, 1, 2));
   scribbleArea->frameCount = 0;
   Timestamp t0 = mSecSinceEpoch();
 
@@ -506,13 +507,13 @@ void ScribbleTest::s2(Dim xoffset, Dim yoffset)
 // Filled stroke similar to s2
 void ScribbleTest::f2(Dim xoffset, Dim yoffset)
 {
-  ScribblePen oldpen = scribbleDoc->getPen();
-  scribbleDoc->setPen(ScribblePen(Color::BLACK, 1.2, ScribblePen::PEN, 2));
+  ScribblePen oldpen = *scribbleDoc->application->getPen();
+  scribbleDoc->application->setPen(ScribblePen(Color::BLACK, 1.2, 2));
   ie(10 + xoffset, -14.8 + yoffset, 0.3, pen, press);
   ie(-9.9 + xoffset, 0.1 + yoffset, 0.7, pen);
   ie(9.8 + xoffset, 15.1 + yoffset, 0.5, pen);
   ie(0, 0, 0, pen, release);
-  scribbleDoc->setPen(oldpen);
+  scribbleDoc->application->setPen(oldpen);
 }
 
 // MultiStroke (HyperRef) consisting of two strokes
@@ -1028,9 +1029,9 @@ void ScribbleTest::test10()
   f2(250, 100);
   doCommand(ID_SELALL);
 
-  scribbleDoc->setPen(ScribblePen(Color::BLUE, -1, ScribblePen::SELECTION));
-  scribbleDoc->setPen(ScribblePen(Color::INVALID_COLOR, 2, ScribblePen::SELECTION));
-  scribbleDoc->setPen(ScribblePen(Color::INVALID_COLOR, 3, ScribblePen::SELECTION));
+  scribbleDoc->activeArea->setStrokeProperties(StrokeProperties(Color::BLUE, -1));
+  scribbleDoc->activeArea->setStrokeProperties(StrokeProperties(Color::INVALID_COLOR, 2));
+  scribbleDoc->activeArea->setStrokeProperties(StrokeProperties(Color::INVALID_COLOR, 3));
   undo();
 
   // Note pen not longer changed when selection active
@@ -1266,7 +1267,7 @@ void ScribbleTest::test15()
   hr(300, 181);
 
   // test z-order for highlighter (draw under)
-  scribbleDoc->setPen(ScribblePen(Color::YELLOW, 20, ScribblePen::PEN, 0, ScribblePen::DRAW_UNDER));
+  scribbleDoc->application->setPen(ScribblePen(Color::YELLOW, 20, 0, ScribblePen::DRAW_UNDER));
   s2(250, 190);
   undo();
   redo();
