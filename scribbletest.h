@@ -6,7 +6,7 @@
 
 class ScribbleTest
 {
-friend class Application;
+friend class ScribbleApp;
 public:
   ScribbleTest(const QString &path);
   ScribbleTest(ScribbleDoc* sd, BookmarkView* bv, ScribbleMode* sm);

@@ -237,7 +237,7 @@ void ScribbleTest::runAll(bool runsynctest)
     if(syncSlave) {
       // wait for slave to finish previous test
       while(syncSlave->waitForSyncDone)
-        Application::processEvents();
+        ScribbleApp::processEvents();
       if(ii >= totaltests)
         break;
       // create whiteboard
@@ -245,12 +245,12 @@ void ScribbleTest::runAll(bool runsynctest)
       scribbleDoc->openSharedDoc(scribbleConfig->String("syncServer"), swbXML.first_child(), true);
       // wait until we connect
       while(!scribbleDoc->scribbleSync->isSyncActive())
-        Application::processEvents();
+        ScribbleApp::processEvents();
       // connect the slave
       syncSlave->startSyncTest(ii);
       // wait until slave connects
       while(!syncSlave->scribbleDoc->scribbleSync->isSyncActive())
-        Application::processEvents();
+        ScribbleApp::processEvents();
     }
     else if(ii >= nonsynctests)
       break;
@@ -352,7 +352,7 @@ void ScribbleTest::performanceTest()
   // draw many strokes
   for(Dim y = 20; y < 800; y += 20) {
     for(Dim x = 20; x < 800; x += 20) {
-      Application::processEvents();
+      ScribbleApp::processEvents();
       s3(x, y);
       scribbleArea->doRefresh();
     }
@@ -366,7 +366,7 @@ void ScribbleTest::performanceTest()
   doCommand(ID_SELALL);
   // move them around
   for(int ii = 0; ii < 10; ii++) {
-    Application::processEvents();
+    ScribbleApp::processEvents();
     s3(400, 400);
     scribbleArea->doRefresh();
   }
@@ -380,14 +380,14 @@ void ScribbleTest::performanceTest()
   ie(400, 800, 0, pen, press);
   for(int ii = 0; ii < 2000; ii++) {
     // cleverly generate a triangle wave
-    Application::processEvents();
+    ScribbleApp::processEvents();
     ie(400, 16*ABS((ii % 100) - 50), 0, pen);
     scribbleArea->doRefresh();
   }
-  Application::processEvents();
+  ScribbleApp::processEvents();
   ie(0, 0, 1, pen, release);
   scribbleArea->doRefresh();
-  Application::processEvents();
+  ScribbleApp::processEvents();
   t1 = mSecSinceEpoch();
   int panTime = t1 - t0;
   t0 = t1;
@@ -1288,7 +1288,7 @@ void ScribbleTest::waitForSync()
   // alternative, wait until master and slave stroke counts are equal?
   ScribbleSync* ss = scribbleDoc->scribbleSync;
   while(ss->canSendHist() || ss->rcvdPos != ss->sentPos || ss->bytesRcvd > syncSlave->scribbleDoc->scribbleSync->bytesRcvd)
-    Application::processEvents();
+    ScribbleApp::processEvents();
 }
 
 void ScribbleTest::synctest01()
@@ -1333,5 +1333,5 @@ void ScribbleTest::synctest01slave2()
   startSyncTest(15);
   // wait for connection
   while(!scribbleDoc->scribbleSync->isSyncActive())
-    Application::processEvents();
+    ScribbleApp::processEvents();
 }
