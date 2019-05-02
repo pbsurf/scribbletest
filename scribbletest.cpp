@@ -29,7 +29,6 @@ ScribbleTest::ScribbleTest(const QString& path)
   // don't use panBorder
   scribbleConfig->set("panFromEdge", false);
   scribbleConfig->set("popupToolbar", false);
-  scribbleConfig->set("compressSVG", false);
   // disable input smoothing
   scribbleConfig->set("inputSmoothing", 0);
   // include thumbnail in test output as a check of rendering
