@@ -8,14 +8,14 @@ class ScribbleTest
 {
 friend class ScribbleApp;
 public:
-  ScribbleTest(const QString &path);
+  ScribbleTest(const std::string &path);
   ScribbleTest(ScribbleDoc* sd, BookmarkView* bv, ScribbleMode* sm);
   ~ScribbleTest();
 
   void runAll(bool runsynctest = false);
   void performanceTest();
   void inputTest();
-  void syncSlaveMsg(QString msg, int level);
+  void syncSlaveMsg(std::string msg, int level);
 
   // result string to be read by caller
   std::string resultStr;
@@ -29,7 +29,7 @@ private:
   Image* screenImg;
   Painter* screenPaint;
   Rect screenRect;
-  QString outPath;
+  std::string outPath;
   int nFailed;
 
   // shared whiteboard testing

@@ -21,7 +21,7 @@
 #define SCRIBBLE_TEST_PATH "."
 #endif
 
-ScribbleTest::ScribbleTest(const QString& path)
+ScribbleTest::ScribbleTest(const std::string& path)
 {
   scribbleConfig = new ScribbleConfig();
   scribbleConfig->set("singleFile", true);
@@ -111,7 +111,7 @@ void ScribbleTest::startSyncTest(int testnum)
   scribbleDoc->newDocument();
   swbXML.first_child().attribute("name").set_value(fstring("testdoc%d", testnum).c_str());
   scribbleDoc->openSharedDoc(scribbleConfig->String("syncServer"), swbXML.first_child(), false);
-  ///QObject::connect(scribbleDoc->scribbleSync, SIGNAL(userMessage(QString,int)), this, SLOT(syncSlaveMsg(QString,int)));
+  ///QObject::connect(scribbleDoc->scribbleSync, SIGNAL(userMessage(std::string,int)), this, SLOT(syncSlaveMsg(std::string,int)));
   waitForSyncDone = true;
 }
 
@@ -127,7 +127,7 @@ void ScribbleTest::checkStrokeMap(ScribbleDoc* doc, const char* msg)
 
 // wait on disconnect message to save and check slave document and advance to next test
 // note that the slave doesn't load any documents
-void ScribbleTest::syncSlaveMsg(QString msg, int level)
+void ScribbleTest::syncSlaveMsg(std::string msg, int level)
 {
   if(!StringRef(msg).contains("testuser1 disconnected"))
     return;
@@ -135,12 +135,12 @@ void ScribbleTest::syncSlaveMsg(QString msg, int level)
   // check strokemap count
   checkStrokeMap(scribbleDoc, "slave (testuser2)");
   // write output file
-  QString basefile = fstring("%s/test%d", outPath.c_str(), syncTestNum);
-  QString outfile = basefile + "_out.html";
-  scribbleDoc->saveDocument(QSTRINGCHAR(outfile));
+  std::string basefile = fstring("%s/test%d", outPath.c_str(), syncTestNum);
+  std::string outfile = basefile + "_out.html";
+  scribbleDoc->saveDocument(outfile.c_str());
   // compare output to reference; tests of one-file-per-page must handle the svg files themselves
-  if(testCompareFiles(QSTRINGCHAR(outfile), QSTRINGCHAR(basefile + "_ref.html"), true))
-    remove(QSTRINGCHAR(outfile));
+  if(testCompareFiles(outfile.c_str(), (basefile + "_ref.html").c_str(), true))
+    remove(outfile.c_str());
   else
     ++nFailed;
   waitForSyncDone = false;
@@ -174,7 +174,7 @@ void ScribbleTest::runAll(bool runsynctest)
 {
   nFailed = 0;
   int nThumbsFailed = 0;
-  QStringList slFailed;
+  std::vector<std::string> slFailed;
   void (ScribbleTest::*tests[])() = {
     &ScribbleTest::test0,
     &ScribbleTest::test1,
@@ -214,14 +214,14 @@ void ScribbleTest::runAll(bool runsynctest)
   QSvgPath::D_RELATIVE = false;
   Timestamp runAllTime = mSecSinceEpoch();
   for(unsigned int ii = 0; true; ii++) {
-    QString basefile = fstring("%s/test%d", outPath.c_str(), ii);
+    std::string basefile = fstring("%s/test%d", outPath.c_str(), ii);
     doCommand(ID_RESETZOOM);
     // uncomment this to update ref files (saving as *_new.html)
     if(scribbleDoc->openDocument((basefile + "_ref.html").c_str()) == Document::LOAD_OK)
       scribbleDoc->saveDocument((basefile + "_new.html").c_str());
     scribbleDoc->newDocument();
     // attempt to open input file; fails quietly if not present
-    Document::loadresult_t res = scribbleDoc->openDocument(QSTRINGCHAR(basefile + "_in.html"));
+    Document::loadresult_t res = scribbleDoc->openDocument((basefile + "_in.html").c_str());
     if(res == Document::LOAD_NONFATAL) {
       scribbleDoc->checkAndClearErrors();
       scribbleDoc->cfg->set("test_loadErrors", true);
@@ -278,14 +278,14 @@ void ScribbleTest::runAll(bool runsynctest)
       dirtycount += scribbleDoc->document->pages[pp]->dirtyCount;
     scribbleDoc->cfg->set("test_dirtyCount", dirtycount);
     // write output file
-    QString outfile = basefile + "_out.html";
-    if(!scribbleDoc->saveDocument(QSTRINGCHAR(outfile)))
+    std::string outfile = basefile + "_out.html";
+    if(!scribbleDoc->saveDocument(outfile.c_str()))
       SCRIBBLE_LOG("ScribbleTest: error saving %s", outfile.c_str());
     // compare output to reference; tests of one-file-per-page must handle the svg files themselves
     // we've had so many problems with thumbnails that we will count mismatches of those separately
-    if(testCompareFiles(QSTRINGCHAR(outfile), QSTRINGCHAR(basefile + "_ref.html")))
-      remove(QSTRINGCHAR(outfile));
-    else if(testCompareFiles(QSTRINGCHAR(outfile), QSTRINGCHAR(basefile + "_ref.html"), true)) {
+    if(testCompareFiles(outfile.c_str(), (basefile + "_ref.html").c_str()))
+      remove(outfile.c_str());
+    else if(testCompareFiles(outfile.c_str(), (basefile + "_ref.html").c_str(), true)) {
       Image refthumb = ScribbleDoc::extractThumbnail((basefile + "_ref.html").c_str());
       Image outthumb = ScribbleDoc::extractThumbnail(outfile.c_str());
       if(outthumb != refthumb) {
@@ -308,7 +308,7 @@ void ScribbleTest::runAll(bool runsynctest)
           }
         }
         outthumb.save(basefile + "_diff.png", "png"); */
-        remove(QSTRINGCHAR(outfile));
+        remove(outfile.c_str());
       }
     }
     else {
@@ -395,16 +395,16 @@ void ScribbleTest::performanceTest()
   // save, then load file
   std::string outfile = std::string(SCRIBBLE_TEST_PATH) + "/perftest.html";
   scribbleDoc->cfg->set("singleFile", true);
-  scribbleDoc->saveDocument(QSTRINGCHAR(outfile));
+  scribbleDoc->saveDocument(outfile.c_str());
   t1 = mSecSinceEpoch();
   int saveTime = t1 - t0;
   t0 = t1;
-  scribbleDoc->openDocument(QSTRINGCHAR(outfile));
+  scribbleDoc->openDocument(outfile.c_str());
   t1 = mSecSinceEpoch();
   int loadTime = t1 - t0;
   t0 = t1;
   int fileSize = getFileSize(outfile);
-  remove(QSTRINGCHAR(outfile));
+  remove(outfile.c_str());
 
   resultStr = fstring(
       "Calibration: %d ms\nDraw: %d frames in %d ms (%f FPS)\nMove: %d frames in %d ms (%f FPS)\nPan: %d frames in %d ms (%f FPS)"
