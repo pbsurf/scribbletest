@@ -211,7 +211,7 @@ void ScribbleTest::runAll(bool runsynctest)
   PointDensityFilter::MAX_POINT_DIST = 1000;
   // don't serialize timestamp
   Element::SVG_NO_TIMESTAMP = true;
-  SvgPath::D_RELATIVE = false;
+  SvgWriter::DEFAULT_PATH_DATA_REL = false;
   Timestamp runAllTime = mSecSinceEpoch();
   for(unsigned int ii = 0; true; ii++) {
     std::string basefile = fstring("%s/test%d", outPath.c_str(), ii);
@@ -318,7 +318,7 @@ void ScribbleTest::runAll(bool runsynctest)
   }
   runAllTime = mSecSinceEpoch() - runAllTime;
   // restore global config
-  SvgPath::D_RELATIVE = true;
+  SvgWriter::DEFAULT_PATH_DATA_REL = true;
   Element::SVG_NO_TIMESTAMP = false;
   PointDensityFilter::MAX_POINT_DIST = 2;
   if(syncSlave)
