@@ -229,7 +229,7 @@ void ScribbleTest::runAll(bool runsynctest)
     // reset mode
     scribbleMode->setRuled(true);
     scribbleMode->setMode(MODE_STROKE);
-    scribbleDoc->application->setPen(ScribblePen(Color::BLACK, 1, 0));
+    scribbleDoc->app->setPen(ScribblePen(Color::BLACK, 1, 0));
     // prevent unintended updates while inspecting:
     scribbleDoc->cfg->set("savePrompt", true);
 
@@ -331,7 +331,7 @@ void ScribbleTest::performanceTest()
 {
   scribbleArea->gotoPos(0, Point(0,0));
   scribbleMode->setMode(MODE_STROKE);
-  scribbleDoc->application->setPen(ScribblePen(Color::BLACK, 1, 2));
+  scribbleDoc->app->setPen(ScribblePen(Color::BLACK, 1, 2));
   scribbleArea->frameCount = 0;
   Timestamp t0 = mSecSinceEpoch();
 
@@ -506,13 +506,13 @@ void ScribbleTest::s2(Dim xoffset, Dim yoffset)
 // Filled stroke similar to s2
 void ScribbleTest::f2(Dim xoffset, Dim yoffset)
 {
-  ScribblePen oldpen = *scribbleDoc->application->getPen();
-  scribbleDoc->application->setPen(ScribblePen(Color::BLACK, 1.2, 2));
+  ScribblePen oldpen = *scribbleDoc->app->getPen();
+  scribbleDoc->app->setPen(ScribblePen(Color::BLACK, 1.2, 2));
   ie(10 + xoffset, -14.8 + yoffset, 0.3, pen, press);
   ie(-9.9 + xoffset, 0.1 + yoffset, 0.7, pen);
   ie(9.8 + xoffset, 15.1 + yoffset, 0.5, pen);
   ie(0, 0, 0, pen, release);
-  scribbleDoc->application->setPen(oldpen);
+  scribbleDoc->app->setPen(oldpen);
 }
 
 // MultiStroke (HyperRef) consisting of two strokes
@@ -1266,7 +1266,7 @@ void ScribbleTest::test15()
   hr(300, 181);
 
   // test z-order for highlighter (draw under)
-  scribbleDoc->application->setPen(ScribblePen(Color::YELLOW, 20, 0, ScribblePen::DRAW_UNDER));
+  scribbleDoc->app->setPen(ScribblePen(Color::YELLOW, 20, 0, ScribblePen::DRAW_UNDER));
   s2(250, 190);
   undo();
   redo();
