@@ -4,6 +4,7 @@
 #include "application.h"
 #include "strokebuilder.h"
 #include "scribblesync.h"
+#include "scribbleapp.h"  // only for sync tests
 
 // Ideally, these tests should be run under valgrind to help check for memory leaks
 // renaming out files to refs (Linux):  for i in {0..13}; do mv "test${i}_out.html" "test${i}_ref.html"; done;
@@ -51,7 +52,7 @@ ScribbleTest::ScribbleTest(const std::string& path)
   // NOTE: if you remove or change this, you must find another way to init erase, select, ins space modes!
   scribbleMode->setRuled(true);
   scribbleMode->setMode(MODE_STROKE);
-  scribbleDoc = new ScribbleDoc(NULL, scribbleConfig, scribbleMode);
+  scribbleDoc = new ScribbleDoc(ScribbleApp::app, scribbleConfig, scribbleMode);
   scribbleArea = new ScribbleArea();
   scribbleDoc->addArea(scribbleArea);
   bookmarkArea = new BookmarkView(scribbleConfig);
@@ -217,8 +218,8 @@ void ScribbleTest::runAll(bool runsynctest)
     std::string basefile = fstring("%s/test%d", outPath.c_str(), ii);
     doCommand(ID_RESETZOOM);
     // uncomment this to update ref files (saving as *_new.html)
-    if(scribbleDoc->openDocument((basefile + "_ref.html").c_str()) == Document::LOAD_OK)
-      scribbleDoc->saveDocument((basefile + "_new.html").c_str());
+    //if(scribbleDoc->openDocument((basefile + "_ref.html").c_str()) == Document::LOAD_OK)
+    //  scribbleDoc->saveDocument((basefile + "_new.html").c_str());
     scribbleDoc->newDocument();
     // attempt to open input file; fails quietly if not present
     Document::loadresult_t res = scribbleDoc->openDocument((basefile + "_in.html").c_str());
