@@ -218,8 +218,8 @@ void ScribbleTest::runAll(bool runsynctest)
     std::string basefile = fstring("%s/test%d", outPath.c_str(), ii);
     doCommand(ID_RESETZOOM);
     // uncomment this to update ref files (saving as *_new.html)
-    //if(scribbleDoc->openDocument((basefile + "_ref.html").c_str()) == Document::LOAD_OK)
-    //  scribbleDoc->saveDocument((basefile + "_new.html").c_str());
+    if(scribbleDoc->openDocument((basefile + "_ref.html").c_str()) == Document::LOAD_OK)
+      scribbleDoc->saveDocument((basefile + "_new.html").c_str());
     scribbleDoc->newDocument();
     // attempt to open input file; fails quietly if not present
     Document::loadresult_t res = scribbleDoc->openDocument((basefile + "_in.html").c_str());
@@ -263,6 +263,20 @@ void ScribbleTest::runAll(bool runsynctest)
       // check strokemap count
       checkStrokeMap(scribbleDoc, "master (testuser1)");
       continue;
+    }
+
+    // distribute transform to stroke points to match old behavior ... remove this later(?)
+    for(Page* page : scribbleDoc->document->pages) {
+      for(SvgNode* node : page->contentNode->children()) {
+        if(node->type() == SvgNode::PATH && node->hasTransform()) {
+          SvgPath* path = static_cast<SvgPath*>(node);
+          path->m_path.transform(path->getTransform());
+          float w = path->getFloatAttr("stroke-width");
+          if(!std::isnan(w))
+            path->setAttr<float>("stroke-width", w*path->getTransform().avgScale());
+          path->setTransform(Transform2D());
+        }
+      }
     }
 
     //screenPaint->beginFrame();
@@ -572,7 +586,8 @@ void ScribbleTest::test0()
   mtinput(INPUTEVENT_MOVE, 135, 128, INPUTEVENT_NONE, 0, 0);
   mtinput(INPUTEVENT_MOVE, 132, 125, INPUTEVENT_PRESS, 345, 327);
   mtinput(INPUTEVENT_MOVE, 144, 137, INPUTEVENT_MOVE, 340, 317);
-  mtinput(INPUTEVENT_CANCEL, 200, 197, INPUTEVENT_CANCEL, 290, 295);
+  // this doesn't do anything - rather the pen input from s2(...) call cancels and starts drawing
+  //mtinput(INPUTEVENT_CANCEL, 200, 197, INPUTEVENT_CANCEL, 290, 295);
 
   // draw something else
   s2(301, 402);
@@ -778,11 +793,13 @@ void ScribbleTest::test5()
   // add new page
   doCommand(ID_NEXTPAGENEW);
   ss(0);
-  // grow new page
+  // grow new page ... off page strokes can't grow page any more, so delete afterwards!
   ie(104.4, 900, 0, pen, press);
-  ie(124.5, 903, 0, pen);
+  ie(124.5, 803, 0, pen);
   ie(131.8, 900, 0, pen);
   ie(0, 0, 0, pen, release);
+  scribbleArea->recentStrokeSelect();
+  doCommand(ID_DELSEL);
   ss(20);
 }
 
@@ -894,7 +911,7 @@ void ScribbleTest::test8()
   // drag selection to second page
   ie(200, 420, 0, pen, press);
   ie(210, 750, 0, pen);
-  ie(215, 1300, 0, pen);
+  ie(215, 1300 - 40, 0, pen);  // -40 accounts for change of interpage gap from 60 to 20
   ie(0, 0, 0, pen, release);
   scribbleArea->screenRect = screenRect;
   // put pen down to clear selection
@@ -1278,6 +1295,22 @@ void ScribbleTest::test15()
   ie(300, 180, 0, pen);
   ie(0, 0, 0, pen, release);
   undo();
+
+  // test of reflow that should fail w/ cmpRuled bug (not sorting strokes on line left-to-right)
+  scribbleDoc->app->setPen(ScribblePen(Color::BLACK, 1, 0));
+  for(int offset = 15; offset < 500; offset += 139) {
+    s1(offset + 60, 120);
+    s1(offset + 90, 120);
+    s1(offset, 120);
+    s1(offset + 30, 120);
+  }
+  // insert space
+  scribbleMode->setMode(MODE_INSSPACERULED);
+  ie(102, 300, 0, pen, press);
+  ie(200, 300, 0, pen);
+  ie(310, 300, 0, pen);
+  ie(0, 0, 0, pen, release);
+
 }
 
 // back and forth test for whiteboard
