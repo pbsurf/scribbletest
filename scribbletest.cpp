@@ -217,9 +217,11 @@ void ScribbleTest::runAll(bool runsynctest)
   for(unsigned int ii = 0; true; ii++) {
     std::string basefile = fstring("%s/test%d", outPath.c_str(), ii);
     doCommand(ID_RESETZOOM);
-    // uncomment this to update ref files (saving as *_new.html)
+    // enable this to update ref files (saving as *_new.html)
+#ifdef REFRESH_REFS
     if(scribbleDoc->openDocument((basefile + "_ref.html").c_str()) == Document::LOAD_OK)
       scribbleDoc->saveDocument((basefile + "_new.html").c_str());
+#endif
     scribbleDoc->newDocument();
     // attempt to open input file; fails quietly if not present
     Document::loadresult_t res = scribbleDoc->openDocument((basefile + "_in.html").c_str());
