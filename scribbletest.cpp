@@ -1313,6 +1313,17 @@ void ScribbleTest::test15()
   ie(310, 300, 0, pen);
   ie(0, 0, 0, pen, release);
 
+  // test erase on negative insert space
+  s2(180 + 60, 420);
+  s2(180 + 90, 420);
+  s2(180,      420);
+  s2(180 + 30, 420);
+
+  scribbleMode->setMode(MODE_INSSPACERULED);
+  ie(180 + 45, 420, 0, pen, press);
+  ie(180, 420, 0, pen);
+  ie(140, 420, 0, pen);
+  ie(0, 0, 0, pen, release);
 }
 
 // back and forth test for whiteboard
