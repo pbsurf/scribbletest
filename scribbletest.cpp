@@ -1026,6 +1026,10 @@ void ScribbleTest::test9()
   doCommand(ID_COPYSEL);
   doCommand(ID_PASTE);
   doCommand(ID_DELSEL);
+  // make sure *cut* and paste preserves id
+  doCommand(ID_SELALL);
+  doCommand(ID_CUTSEL);
+  doCommand(ID_PASTE);
   doCommand(ID_NEXTPAGENEW);
 }
 
