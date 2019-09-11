@@ -325,7 +325,7 @@ void ScribbleTest::runAll(bool runsynctest)
           }
         }
         outthumb.save(basefile + "_diff.png", "png"); */
-        remove(outfile.c_str());
+        //remove(outfile.c_str());
       }
     }
     else {

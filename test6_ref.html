@@ -21,38 +21,38 @@
  </head>
  <body>
   
-  <img id='thumbnail' style='display:none;' src='data:image/png;base64,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'/>
+  <img id='thumbnail' style='display:none;' src='data:image/png;base64,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'/>
 
 <svg width="768px" height="1024px" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
   <g class="write-content write-v3" width="768" height="1024" xruling="0" yruling="40" marginLeft="100" papercolor="#FFFFFF" rulecolor="#FF0000FF">
     <g id="write-ruling" class="ruleline write-scale-down" fill="none" stroke="#0000FF" stroke-width="1" shape-rendering="crispEdges" vector-effect="non-scaling-stroke">
       <rect id="pagerect" fill="#FFFFFF" stroke="none" x="0" y="0" width="768" height="1024" />
-      <line id="yrule_1" x1="0" y1="40.490" x2="768" y2="40.490" />
-      <line x1="0" y1="80.490" x2="768" y2="80.490" />
-      <line x1="0" y1="120.490" x2="768" y2="120.490" />
-      <line x1="0" y1="160.490" x2="768" y2="160.490" />
-      <line x1="0" y1="200.490" x2="768" y2="200.490" />
-      <line x1="0" y1="240.490" x2="768" y2="240.490" />
-      <line x1="0" y1="280.490" x2="768" y2="280.490" />
-      <line x1="0" y1="320.490" x2="768" y2="320.490" />
-      <line x1="0" y1="360.490" x2="768" y2="360.490" />
-      <line x1="0" y1="400.490" x2="768" y2="400.490" />
-      <line x1="0" y1="440.490" x2="768" y2="440.490" />
-      <line x1="0" y1="480.490" x2="768" y2="480.490" />
-      <line x1="0" y1="520.490" x2="768" y2="520.490" />
-      <line x1="0" y1="560.490" x2="768" y2="560.490" />
-      <line x1="0" y1="600.490" x2="768" y2="600.490" />
-      <line x1="0" y1="640.490" x2="768" y2="640.490" />
-      <line x1="0" y1="680.490" x2="768" y2="680.490" />
-      <line x1="0" y1="720.490" x2="768" y2="720.490" />
-      <line x1="0" y1="760.490" x2="768" y2="760.490" />
-      <line x1="0" y1="800.490" x2="768" y2="800.490" />
-      <line x1="0" y1="840.490" x2="768" y2="840.490" />
-      <line x1="0" y1="880.490" x2="768" y2="880.490" />
-      <line x1="0" y1="920.490" x2="768" y2="920.490" />
-      <line x1="0" y1="960.490" x2="768" y2="960.490" />
-      <line x1="0" y1="1000.490" x2="768" y2="1000.490" />
-      <line id="leftmargin" stroke="#FF0000" x1="100.490" y1="0" x2="100.490" y2="1024" />
+      <line id="yrule_1" x1="0" y1="40" x2="768" y2="40" />
+      <line x1="0" y1="80" x2="768" y2="80" />
+      <line x1="0" y1="120" x2="768" y2="120" />
+      <line x1="0" y1="160" x2="768" y2="160" />
+      <line x1="0" y1="200" x2="768" y2="200" />
+      <line x1="0" y1="240" x2="768" y2="240" />
+      <line x1="0" y1="280" x2="768" y2="280" />
+      <line x1="0" y1="320" x2="768" y2="320" />
+      <line x1="0" y1="360" x2="768" y2="360" />
+      <line x1="0" y1="400" x2="768" y2="400" />
+      <line x1="0" y1="440" x2="768" y2="440" />
+      <line x1="0" y1="480" x2="768" y2="480" />
+      <line x1="0" y1="520" x2="768" y2="520" />
+      <line x1="0" y1="560" x2="768" y2="560" />
+      <line x1="0" y1="600" x2="768" y2="600" />
+      <line x1="0" y1="640" x2="768" y2="640" />
+      <line x1="0" y1="680" x2="768" y2="680" />
+      <line x1="0" y1="720" x2="768" y2="720" />
+      <line x1="0" y1="760" x2="768" y2="760" />
+      <line x1="0" y1="800" x2="768" y2="800" />
+      <line x1="0" y1="840" x2="768" y2="840" />
+      <line x1="0" y1="880" x2="768" y2="880" />
+      <line x1="0" y1="920" x2="768" y2="920" />
+      <line x1="0" y1="960" x2="768" y2="960" />
+      <line x1="0" y1="1000" x2="768" y2="1000" />
+      <line id="leftmargin" stroke="#FF0000" x1="100" y1="0" x2="100" y2="1024" />
     </g>
     <path class="write-stroke-pen" __comx="416" __comy="768.940" stroke="#000000" stroke-width="1" fill="none" stroke-linecap="round" stroke-linejoin="round" d="M426 743 L425 743 424 744 419 747 417 750 409 755 405 759 396 766 390 770 382 779 376 783 371 787 364 792 360 795 354 799 352 802 349 804 346 806 345 807 344 807 344 808 344 809 345 810 346 812 349 816 352 820 357 826 361 832 367 839 372 845 381 854 387 859 395 866 401 870 406 873 412 877 415 880 418 882 419 883 420 883 421 882 423 881 426 878 431 873 434 870 442 862 447 857 454 850 459 845 464 840 469 835 472 832 476 829 478 827 481 825 482 824 483 822 483 821 484 820 484 819 485 819 485 818 485 817 486 816 487 814 488 814 488 813 488 812 488 811 488 810 488 809 488 808" />
     <path class="write-stroke-pen" __comx="433" __comy="595.426" stroke="#000000" stroke-width="1" fill="none" stroke-linecap="round" stroke-linejoin="round" d="M431 595 L430 596 429 597 428 598 428 599 428 600 427 601 427 603 427 604 427 605 427 606 428 606 430 607 430 608 431 608 433 608 434 608 435 608 436 606 438 604 438 603 439 602 439 600 439 599 439 597 439 596 439 594 437 594 437 593 436 593 435 593 435 592 434 592 433 592 432 592 431 593" />
@@ -62,32 +62,32 @@
   <g class="write-content write-v3" width="768" height="1024" xruling="0" yruling="40" marginLeft="100" papercolor="#FFFFFF" rulecolor="#FF0000FF">
     <g id="write-ruling" class="ruleline write-scale-down" fill="none" stroke="#0000FF" stroke-width="1" shape-rendering="crispEdges" vector-effect="non-scaling-stroke">
       <rect id="pagerect" fill="#FFFFFF" stroke="none" x="0" y="0" width="768" height="1024" />
-      <line id="yrule_1" x1="0" y1="40.490" x2="768" y2="40.490" />
-      <line x1="0" y1="80.490" x2="768" y2="80.490" />
-      <line x1="0" y1="120.490" x2="768" y2="120.490" />
-      <line x1="0" y1="160.490" x2="768" y2="160.490" />
-      <line x1="0" y1="200.490" x2="768" y2="200.490" />
-      <line x1="0" y1="240.490" x2="768" y2="240.490" />
-      <line x1="0" y1="280.490" x2="768" y2="280.490" />
-      <line x1="0" y1="320.490" x2="768" y2="320.490" />
-      <line x1="0" y1="360.490" x2="768" y2="360.490" />
-      <line x1="0" y1="400.490" x2="768" y2="400.490" />
-      <line x1="0" y1="440.490" x2="768" y2="440.490" />
-      <line x1="0" y1="480.490" x2="768" y2="480.490" />
-      <line x1="0" y1="520.490" x2="768" y2="520.490" />
-      <line x1="0" y1="560.490" x2="768" y2="560.490" />
-      <line x1="0" y1="600.490" x2="768" y2="600.490" />
-      <line x1="0" y1="640.490" x2="768" y2="640.490" />
-      <line x1="0" y1="680.490" x2="768" y2="680.490" />
-      <line x1="0" y1="720.490" x2="768" y2="720.490" />
-      <line x1="0" y1="760.490" x2="768" y2="760.490" />
-      <line x1="0" y1="800.490" x2="768" y2="800.490" />
-      <line x1="0" y1="840.490" x2="768" y2="840.490" />
-      <line x1="0" y1="880.490" x2="768" y2="880.490" />
-      <line x1="0" y1="920.490" x2="768" y2="920.490" />
-      <line x1="0" y1="960.490" x2="768" y2="960.490" />
-      <line x1="0" y1="1000.490" x2="768" y2="1000.490" />
-      <line id="leftmargin" stroke="#FF0000" x1="100.490" y1="0" x2="100.490" y2="1024" />
+      <line id="yrule_1" x1="0" y1="40" x2="768" y2="40" />
+      <line x1="0" y1="80" x2="768" y2="80" />
+      <line x1="0" y1="120" x2="768" y2="120" />
+      <line x1="0" y1="160" x2="768" y2="160" />
+      <line x1="0" y1="200" x2="768" y2="200" />
+      <line x1="0" y1="240" x2="768" y2="240" />
+      <line x1="0" y1="280" x2="768" y2="280" />
+      <line x1="0" y1="320" x2="768" y2="320" />
+      <line x1="0" y1="360" x2="768" y2="360" />
+      <line x1="0" y1="400" x2="768" y2="400" />
+      <line x1="0" y1="440" x2="768" y2="440" />
+      <line x1="0" y1="480" x2="768" y2="480" />
+      <line x1="0" y1="520" x2="768" y2="520" />
+      <line x1="0" y1="560" x2="768" y2="560" />
+      <line x1="0" y1="600" x2="768" y2="600" />
+      <line x1="0" y1="640" x2="768" y2="640" />
+      <line x1="0" y1="680" x2="768" y2="680" />
+      <line x1="0" y1="720" x2="768" y2="720" />
+      <line x1="0" y1="760" x2="768" y2="760" />
+      <line x1="0" y1="800" x2="768" y2="800" />
+      <line x1="0" y1="840" x2="768" y2="840" />
+      <line x1="0" y1="880" x2="768" y2="880" />
+      <line x1="0" y1="920" x2="768" y2="920" />
+      <line x1="0" y1="960" x2="768" y2="960" />
+      <line x1="0" y1="1000" x2="768" y2="1000" />
+      <line id="leftmargin" stroke="#FF0000" x1="100" y1="0" x2="100" y2="1024" />
     </g>
     <path class="write-stroke-pen" __comx="125.500" __comy="59.867" stroke="#000000" stroke-width="1" fill="none" stroke-linecap="round" stroke-linejoin="round" d="M132 57 L130 59 128 62 127 64 125 66 122 68 121 70 120 71 120 72 119 72" />
     <path class="write-stroke-pen" __comx="125" __comy="61.530" stroke="#000000" stroke-width="1" fill="none" stroke-linecap="round" stroke-linejoin="round" d="M119 60 L120 60 122 61 123 62 125 64 126 64 127 66 128 68 129 69 130 70 131 72" />
