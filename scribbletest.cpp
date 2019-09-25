@@ -55,8 +55,8 @@ ScribbleTest::ScribbleTest(const std::string& path)
   scribbleDoc = new ScribbleDoc(ScribbleApp::app, scribbleConfig, scribbleMode);
   scribbleArea = new ScribbleArea();
   scribbleDoc->addArea(scribbleArea);
-  bookmarkArea = new BookmarkView(scribbleConfig);
-  bookmarkArea->setScribbleDoc(scribbleDoc);
+  bookmarkArea = new BookmarkView(scribbleConfig, scribbleDoc);
+  //bookmarkArea->setScribbleDoc(scribbleDoc);
   syncSlave = NULL;
   waitForSyncDone = false;
   outPath = path;
