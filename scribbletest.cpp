@@ -209,7 +209,7 @@ void ScribbleTest::runAll(bool runsynctest)
   }
 
   // don't add extra points to test strokes
-  PointDensityFilter::MAX_POINT_DIST = 1000;
+  //PointDensityFilter::MAX_POINT_DIST = 1000;
   // don't serialize timestamp
   Element::SVG_NO_TIMESTAMP = true;
   SvgWriter::DEFAULT_PATH_DATA_REL = false;
@@ -337,7 +337,7 @@ void ScribbleTest::runAll(bool runsynctest)
   // restore global config
   SvgWriter::DEFAULT_PATH_DATA_REL = true;
   Element::SVG_NO_TIMESTAMP = false;
-  PointDensityFilter::MAX_POINT_DIST = 2;
+  //PointDensityFilter::MAX_POINT_DIST = 2;
   if(syncSlave)
     nFailed = syncSlave->nFailed;
   resultStr = fstring("Tests completed in %d ms with %d failed tests (%s) and %d failed thumbnails.",
@@ -1099,7 +1099,7 @@ void ScribbleTest::test11()
     }
   }
   // need dense points
-  PointDensityFilter::MAX_POINT_DIST = 2;
+  //PointDensityFilter::MAX_POINT_DIST = 2;
   // draw column divider - points need to be dense and we've disabled MAX_POINT_DIST
   ie(640, 20, 0, pen, press);
   ie(605, 220, 0, pen);
@@ -1130,7 +1130,7 @@ void ScribbleTest::test11()
   ie(290, 380, 0, pen);
   ie(400, 380, 0, pen);
   ie(0, 0, 0, pen, release);
-  PointDensityFilter::MAX_POINT_DIST = 1000;
+  //PointDensityFilter::MAX_POINT_DIST = 1000;
 }
 
 // test scaling ... test12_in.html includes an image
