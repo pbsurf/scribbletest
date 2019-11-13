@@ -993,8 +993,8 @@ void ScribbleTest::test9()
   ie(385, 89, 0, pen);
   ie(0, 0, 0, pen, release);
 
-  // Must draw bookmarks so that findBookmark will work
-  screenPaint->beginFrame();  bookmarkArea->doPaintEvent(screenPaint);  screenPaint->endFrame();
+  // must refresh bookmarks so that findBookmark will work
+  bookmarkArea->repaintBookmarks();
 
   // drop a bookmark off page, then undo - added because this used to cause crash on undo
   scribbleMode->setMode(MODE_BOOKMARK);
