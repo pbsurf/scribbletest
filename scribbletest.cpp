@@ -208,9 +208,11 @@ void ScribbleTest::runAll(bool runsynctest)
     syncSlave->nFailed = 0;
   }
 
-  // don't add extra points to test strokes
-  //PointDensityFilter::MAX_POINT_DIST = 1000;
-  // don't serialize timestamp
+  // these are set in ScribbleApp::loadConfig() ... would be better to pass our scribbleConfig to it
+  RectSelector::HANDLE_SIZE = 4;
+  SvgWriter::DEFAULT_SAVE_IMAGE_SCALED = 1;
+  Page::BLANK_Y_RULING = scribbleConfig->Float("blankYRuling");  // don't serialize timestamp
+
   Element::SVG_NO_TIMESTAMP = true;
   SvgWriter::DEFAULT_PATH_DATA_REL = false;
   Timestamp runAllTime = mSecSinceEpoch();
@@ -337,7 +339,7 @@ void ScribbleTest::runAll(bool runsynctest)
   // restore global config
   SvgWriter::DEFAULT_PATH_DATA_REL = true;
   Element::SVG_NO_TIMESTAMP = false;
-  //PointDensityFilter::MAX_POINT_DIST = 2;
+  ScribbleApp::app->loadConfig();
   if(syncSlave)
     nFailed = syncSlave->nFailed;
   resultStr = fstring("Tests completed in %d ms with %d failed tests (%s) and %d failed thumbnails.",
