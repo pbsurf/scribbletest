@@ -44,7 +44,7 @@ ScribbleTest::ScribbleTest(const std::string& path)
   scribbleConfig->set("ruleColor", int(Color::BLUE));
   //scribbleConfig->migrateConfig();  // convert xRuling, yRuling, marginLeft to RuleLayer
   // disable DPI detection
-  scribbleConfig->set("screenDPI", int(ScribbleView::DEFAULT_DPI));
+  scribbleConfig->set("screenDPI", 150);  //int(ScribbleView::DEFAULT_DPI));
   // disable pen detection (so that mouse input doesn't get disabled)
   scribbleConfig->set("penType", ScribbleInput::DETECTED_PEN);
   //Painter::initPaintSystem();
@@ -208,6 +208,8 @@ void ScribbleTest::runAll(bool runsynctest)
     syncSlave->nFailed = 0;
   }
 
+  Dim unitsPerPx = ScribbleView::unitsPerPx;
+  ScribbleView::unitsPerPx = 1;
   // these are set in ScribbleApp::loadConfig() ... would be better to pass our scribbleConfig to it
   RectSelector::HANDLE_SIZE = 4;
   SvgWriter::DEFAULT_SAVE_IMAGE_SCALED = 1;
@@ -339,6 +341,7 @@ void ScribbleTest::runAll(bool runsynctest)
   // restore global config
   SvgWriter::DEFAULT_PATH_DATA_REL = true;
   Element::SVG_NO_TIMESTAMP = false;
+  ScribbleView::unitsPerPx = unitsPerPx;
   ScribbleApp::app->loadConfig();
   if(syncSlave)
     nFailed = syncSlave->nFailed;
