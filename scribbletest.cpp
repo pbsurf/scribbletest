@@ -346,7 +346,7 @@ void ScribbleTest::runAll(bool runsynctest)
   if(syncSlave)
     nFailed = syncSlave->nFailed;
   resultStr = fstring("Tests completed in %d ms with %d failed tests (%s) and %d failed thumbnails.",
-      int(runAllTime), nFailed, strJoin(slFailed, ", ").c_str(), nThumbsFailed);
+      int(runAllTime), nFailed, joinStr(slFailed, ", ").c_str(), nThumbsFailed);
 }
 
 void ScribbleTest::performanceTest()
