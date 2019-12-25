@@ -1240,6 +1240,17 @@ void ScribbleTest::test13()
     scribbleArea->cfg->set("singleFile", true);
     // remove SVG files
     ScribbleDoc::deleteDocument(filename);
+
+    // test other file types
+    std::string svgfile = outPath + "/test13_out.svg";
+    scribbleDoc->saveDocument(svgfile.c_str());
+    scribbleDoc->openDocument(svgfile.c_str());
+    ScribbleDoc::deleteDocument(svgfile.c_str());
+
+    std::string svgzfile = outPath + "/test13_out.svgz";
+    scribbleDoc->saveDocument(svgzfile.c_str());
+    scribbleDoc->openDocument(svgzfile.c_str());
+    ScribbleDoc::deleteDocument(svgzfile.c_str());
   }
 }
 
