@@ -1062,6 +1062,14 @@ void ScribbleTest::test10()
   scribbleDoc->activeArea->setStrokeProperties(StrokeProperties(Color::INVALID_COLOR, 3));
   undo();
 
+  // added due to bug: failed to create undo items for translated multistrokes
+  scribbleMode->setMode(MODE_INSSPACERULED);
+  ie(104, 100, 0, pen, press);
+  ie(195, 98, 0, pen);
+  ie(244, 103, 0, pen);
+  ie(0, 0, 0, pen, release);
+  undo();
+
   // Note pen not longer changed when selection active
   scribbleMode->setMode(MODE_INSSPACERULED);
   ie(104, 100, 0, pen, press);
