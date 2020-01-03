@@ -141,7 +141,7 @@ void ScribbleTest::syncSlaveMsg(std::string msg, int level)
   scribbleDoc->saveDocument(outfile.c_str());
   // compare output to reference; tests of one-file-per-page must handle the svg files themselves
   if(testCompareFiles(outfile.c_str(), (basefile + "_ref.html").c_str(), true))
-    remove(outfile.c_str());
+    scribbleDoc->document->deleteFiles();  //remove(outfile.c_str());
   else
     ++nFailed;
   waitForSyncDone = false;
@@ -305,7 +305,7 @@ void ScribbleTest::runAll(bool runsynctest)
     // compare output to reference; tests of one-file-per-page must handle the svg files themselves
     // we've had so many problems with thumbnails that we will count mismatches of those separately
     if(testCompareFiles(outfile.c_str(), (basefile + "_ref.html").c_str()))
-      remove(outfile.c_str());
+      scribbleDoc->document->deleteFiles();  // remove(outfile.c_str());
     else if(testCompareFiles(outfile.c_str(), (basefile + "_ref.html").c_str(), true)) {
       Image refthumb = ScribbleDoc::extractThumbnail((basefile + "_ref.html").c_str());
       Image outthumb = ScribbleDoc::extractThumbnail(outfile.c_str());
@@ -426,7 +426,7 @@ void ScribbleTest::performanceTest()
   int loadTime = t1 - t0;
   t0 = t1;
   int fileSize = getFileSize(outfile);
-  remove(outfile.c_str());
+  scribbleDoc->document->deleteFiles();   //remove(outfile.c_str());
 
   resultStr = fstring(
       "Calibration: %d ms\nDraw: %d frames in %d ms (%f FPS)\nMove: %d frames in %d ms (%f FPS)\nPan: %d frames in %d ms (%f FPS)"
@@ -1239,18 +1239,20 @@ void ScribbleTest::test13()
     // return to single file config for comparision of file result
     scribbleArea->cfg->set("singleFile", true);
     // remove SVG files
-    ScribbleDoc::deleteDocument(filename);
+    scribbleDoc->document->deleteFiles();   //ScribbleDoc::deleteDocument(filename);
 
     // test other file types
     std::string svgfile = outPath + "/test13_out.svg";
     scribbleDoc->saveDocument(svgfile.c_str());
     scribbleDoc->openDocument(svgfile.c_str());
-    ScribbleDoc::deleteDocument(svgfile.c_str());
+    scribbleDoc->document->ensurePagesLoaded();
+    scribbleDoc->document->deleteFiles();   //ScribbleDoc::deleteDocument(svgfile.c_str());
 
     std::string svgzfile = outPath + "/test13_out.svgz";
     scribbleDoc->saveDocument(svgzfile.c_str());
     scribbleDoc->openDocument(svgzfile.c_str());
-    ScribbleDoc::deleteDocument(svgzfile.c_str());
+    scribbleDoc->document->ensurePagesLoaded();
+    scribbleDoc->document->deleteFiles();   //ScribbleDoc::deleteDocument(svgzfile.c_str());
   }
 }
 
@@ -1293,7 +1295,7 @@ void ScribbleTest::test14()
     // reopen
     scribbleDoc->openDocument(filename.c_str(), false);  // delayload = false
     // delete the autosave files
-    ScribbleDoc::deleteDocument(filename.c_str());
+    scribbleDoc->document->deleteFiles();   //ScribbleDoc::deleteDocument(filename.c_str());
   }
 }
 
