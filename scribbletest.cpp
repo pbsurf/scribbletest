@@ -486,7 +486,7 @@ void ScribbleTest::s3(Dim xoffset, Dim yoffset)
 
 void ScribbleTest::ie(Dim x, Dim y, Dim p, int src, int ev, int mm)
 {
-  scribbleArea->scribbleInput->doInputEvent(x, y, p, (inputsource_t)src, (inputevent_t)ev, mm);
+  scribbleArea->scribbleInput->doInputEvent(x, y, p, (inputsource_t)src, (inputevent_t)ev, mm, 0);
 }
 
 void ScribbleTest::mtinput(inputevent_t ev1, Dim x1, Dim y1, inputevent_t ev2, Dim x2, Dim y2)
