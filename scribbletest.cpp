@@ -211,7 +211,7 @@ void ScribbleTest::runAll(bool runsynctest)
   Dim unitsPerPx = ScribbleView::unitsPerPx;
   ScribbleView::unitsPerPx = 1;
   // these are set in ScribbleApp::loadConfig() ... would be better to pass our scribbleConfig to it
-  RectSelector::HANDLE_SIZE = 4;
+  //RectSelector::HANDLE_SIZE = 4;
   SvgWriter::DEFAULT_SAVE_IMAGE_SCALED = 1;
   Page::BLANK_Y_RULING = scribbleConfig->Float("blankYRuling");  // don't serialize timestamp
 
