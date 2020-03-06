@@ -347,6 +347,8 @@ void ScribbleTest::runAll(bool runsynctest)
     nFailed = syncSlave->nFailed;
   resultStr = fstring("Tests completed in %d ms with %d failed tests (%s) and %d failed thumbnails.",
       int(runAllTime), nFailed, joinStr(slFailed, ", ").c_str(), nThumbsFailed);
+  if(!Painter::sRGB)
+    resultStr += "\nWARNING: ScribbleTest requires sRGB=1 to get correct thumbnails!";
 }
 
 void ScribbleTest::performanceTest()
