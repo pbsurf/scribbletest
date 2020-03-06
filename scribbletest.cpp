@@ -1320,6 +1320,12 @@ void ScribbleTest::test15()
   f2(250, 182);
   hr(300, 181);
 
+  // make sure realToStr doesn't write "-0"
+  ie(400, 180, 0, pen, press);
+  ie(410, 180.0004, 0, pen);
+  ie(420, 180, 0, pen);
+  ie(0, 0, 0, pen, release);
+
   // test z-order for highlighter (draw under)
   scribbleDoc->app->setPen(ScribblePen(Color::YELLOW, 20, 0, ScribblePen::DRAW_UNDER));
   s2(250, 190);
