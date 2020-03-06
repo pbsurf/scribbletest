@@ -1312,6 +1312,9 @@ void ScribbleTest::test14()
 // add snap to grid and line drawing tests too!
 void ScribbleTest::test15()
 {
+  // switch to relative path data
+  SvgWriter::DEFAULT_PATH_DATA_REL = true;
+
   scribbleArea->gotoPos(0, Point(0,0));
   s2(200, 179);
   f2(250, 182);
