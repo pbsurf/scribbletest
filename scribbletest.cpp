@@ -217,6 +217,7 @@ void ScribbleTest::runAll(bool runsynctest)
 
   Element::SVG_NO_TIMESTAMP = true;
   SvgWriter::DEFAULT_PATH_DATA_REL = false;
+  srand(1);  // randomStr now used for bookmark ids
   Timestamp runAllTime = mSecSinceEpoch();
   for(unsigned int ii = 0; true; ii++) {
     std::string basefile = fstring("%s/test%d", outPath.c_str(), ii);
@@ -339,6 +340,7 @@ void ScribbleTest::runAll(bool runsynctest)
   }
   runAllTime = mSecSinceEpoch() - runAllTime;
   // restore global config
+  srand(mSecSinceEpoch());
   SvgWriter::DEFAULT_PATH_DATA_REL = true;
   Element::SVG_NO_TIMESTAMP = false;
   ScribbleView::unitsPerPx = unitsPerPx;
