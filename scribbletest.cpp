@@ -41,7 +41,7 @@ ScribbleTest::ScribbleTest(const std::string& path)
   scribbleConfig->set("xRuling", 0.0);
   scribbleConfig->set("yRuling", 40.0);
   scribbleConfig->set("marginLeft", 100.0);
-  scribbleConfig->set("ruleColor", int(Color::BLUE));
+  //scribbleConfig->set("ruleColor", int(Color::BLUE));
   //scribbleConfig->migrateConfig();  // convert xRuling, yRuling, marginLeft to RuleLayer
   // disable DPI detection
   scribbleConfig->set("screenDPI", 150);  //int(ScribbleView::DEFAULT_DPI));
