@@ -217,7 +217,7 @@ void ScribbleTest::runAll(bool runsynctest)
 
   Element::SVG_NO_TIMESTAMP = true;
   SvgWriter::DEFAULT_PATH_DATA_REL = false;
-  srand(1);  // randomStr now used for bookmark ids
+  srandpp(1);  // randomStr now used for bookmark ids
   Timestamp runAllTime = mSecSinceEpoch();
   for(unsigned int ii = 0; true; ii++) {
     std::string basefile = fstring("%s/test%d", outPath.c_str(), ii);
@@ -340,7 +340,7 @@ void ScribbleTest::runAll(bool runsynctest)
   }
   runAllTime = mSecSinceEpoch() - runAllTime;
   // restore global config
-  srand(mSecSinceEpoch());
+  srandpp(mSecSinceEpoch());
   SvgWriter::DEFAULT_PATH_DATA_REL = true;
   Element::SVG_NO_TIMESTAMP = false;
   ScribbleView::unitsPerPx = unitsPerPx;
@@ -1169,6 +1169,10 @@ void ScribbleTest::test12()
   f2(250, 182);
   hr(300, 181);
   doCommand(ID_SELALL);
+  // tap the selection to change to move sel free mode (since selectAll no longer ignores moveSelMode)
+  ie(300, 160, 0, pen, press);
+  ie(298, 162, 0, pen);
+  ie(0, 0, 0, pen, release);
   // resize selection
   ie(320, 198, 0, pen, press);
   ie(350, 250, 0, pen);
@@ -1272,6 +1276,7 @@ void ScribbleTest::test14()
 {
   std::string filename = outPath + "/test14_autosave.html";
 
+  scribbleMode->moveSelMode = MODE_MOVESELFREE;  // selectAll no longer ignores moveSelMode
   // easier to figure out what's going on if screen space and Dim space are the same
   scribbleArea->gotoPos(0, Point(0,0));
 
