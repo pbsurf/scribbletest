@@ -238,6 +238,7 @@ void ScribbleTest::runAll(bool runsynctest)
     scribbleMode->setRuled(true);
     scribbleMode->setMode(MODE_STROKE);
     scribbleDoc->app->setPen(ScribblePen(Color::BLACK, 1, 0));
+    scribbleDoc->app->bookmarkColor = Color::BLUE;
     // prevent unintended updates while inspecting:
     scribbleDoc->cfg->set("savePrompt", true);
 
