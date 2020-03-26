@@ -112,7 +112,7 @@ void ScribbleTest::startSyncTest(int testnum)
   scribbleDoc->newDocument();
   swbXML.first_child().attribute("name").set_value(fstring("testdoc%d", testnum).c_str());
   scribbleDoc->openSharedDoc(scribbleConfig->String("syncServer"), swbXML.first_child(), false);
-  ///QObject::connect(scribbleDoc->scribbleSync, SIGNAL(userMessage(std::string,int)), this, SLOT(syncSlaveMsg(std::string,int)));
+  scribbleDoc->scribbleSync->userMessage = [this](std::string msg, int level){ syncSlaveMsg(msg, level); };
   waitForSyncDone = true;
 }
 
