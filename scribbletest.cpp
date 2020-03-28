@@ -106,6 +106,22 @@ ScribbleTest::~ScribbleTest()
   scribbleConfig = NULL;
 }
 
+static void distributeTransform(Document* doc)
+{
+  for(Page* page : doc->pages) {
+    for(SvgNode* node : page->contentNode->children()) {
+      if(node->type() == SvgNode::PATH && node->hasTransform()) {
+        SvgPath* path = static_cast<SvgPath*>(node);
+        path->m_path.transform(path->getTransform());
+        float w = path->getFloatAttr("stroke-width");
+        if(!std::isnan(w))
+          path->setAttr<float>("stroke-width", w*path->getTransform().avgScale());
+        path->setTransform(Transform2D());
+      }
+    }
+  }
+}
+
 void ScribbleTest::startSyncTest(int testnum)
 {
   syncTestNum = testnum;
@@ -135,6 +151,7 @@ void ScribbleTest::syncSlaveMsg(std::string msg, int level)
 
   // check strokemap count
   checkStrokeMap(scribbleDoc, "slave (testuser2)");
+  distributeTransform(scribbleDoc->document);
   // write output file
   std::string basefile = fstring("%s/test%d", outPath.c_str(), syncTestNum);
   std::string outfile = basefile + "_out.html";
@@ -193,7 +210,7 @@ void ScribbleTest::runAll(bool runsynctest)
     &ScribbleTest::test13,
     &ScribbleTest::test14,
     &ScribbleTest::test15,
-    &ScribbleTest::synctest01
+    //&ScribbleTest::synctest01
   };
   unsigned int totaltests = sizeof(tests)/sizeof(tests[0]);
   unsigned int nonsynctests = totaltests - 1;  // last test is for sync only
@@ -249,6 +266,7 @@ void ScribbleTest::runAll(bool runsynctest)
       if(ii >= totaltests)
         break;
       // create whiteboard
+      //SCRIBBLE_LOG("\nRUNNING TEST %d\n\n", ii);
       swbXML.first_child().attribute("name").set_value(fstring("testdoc%d", ii).c_str());
       scribbleDoc->openSharedDoc(scribbleConfig->String("syncServer"), swbXML.first_child(), true);
       // wait until we connect
@@ -274,19 +292,7 @@ void ScribbleTest::runAll(bool runsynctest)
     }
 
     // distribute transform to stroke points to match old behavior ... remove this later(?)
-    for(Page* page : scribbleDoc->document->pages) {
-      for(SvgNode* node : page->contentNode->children()) {
-        if(node->type() == SvgNode::PATH && node->hasTransform()) {
-          SvgPath* path = static_cast<SvgPath*>(node);
-          path->m_path.transform(path->getTransform());
-          float w = path->getFloatAttr("stroke-width");
-          if(!std::isnan(w))
-            path->setAttr<float>("stroke-width", w*path->getTransform().avgScale());
-          path->setTransform(Transform2D());
-        }
-      }
-    }
-
+    distributeTransform(scribbleDoc->document);
     //screenPaint->beginFrame();
     //bookmarkArea->doPaintEvent(screenPaint);
     //screenPaint->endFrame();
@@ -319,19 +325,6 @@ void ScribbleTest::runAll(bool runsynctest)
         std::ofstream outstrm((basefile + "_out.png").c_str(), std::ios::binary);
         auto outenc = outthumb.encodePNG();
         outstrm.write((char*)outenc.data(), outenc.size());
-        //refthumb.save(basefile + "_ref.png", "png");
-        //outthumb.save(basefile + "_out.png", "png");
-        /*int w = outthumb.width(), h = outthumb.height();
-        for(int y = 0; y < h; ++y) {
-          for(int x = 0; x < w; ++x) {
-            QRgb o = outthumb.pixel(x,y);
-            QRgb r = refthumb.pixel(x,y);
-            //QRgb d = qRgb((qRed(o) + 127) - qRed(r), (qGreen(o) + 127) - qGreen(r), (qBlue(o) + 127) - qBlue(r));
-            outthumb.setPixel(x, y, o == r ? Qt::white : Qt::black);
-          }
-        }
-        outthumb.save(basefile + "_diff.png", "png"); */
-        //remove(outfile.c_str());
       }
     }
     else {
