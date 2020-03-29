@@ -15,8 +15,8 @@
 //  X61T: TBD
 // standalone means not started from Qt Creator (so no qDebug output)
 
-// Qt 4 vs 5: no significant speed difference on Test or Performance Test; Qt 5 seems about 2x faster drawing
-//  stroked paths but no difference with filled paths
+// Known sync test issues: 9 (randomStr for bookmark id), 12 (numerical), 14 (numerical)
+
 
 #ifndef SCRIBBLE_TEST_PATH
 #define SCRIBBLE_TEST_PATH "."
