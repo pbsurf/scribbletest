@@ -210,7 +210,7 @@ void ScribbleTest::runAll(bool runsynctest)
     &ScribbleTest::test13,
     &ScribbleTest::test14,
     &ScribbleTest::test15,
-    //&ScribbleTest::synctest01
+    &ScribbleTest::synctest01
   };
   unsigned int totaltests = sizeof(tests)/sizeof(tests[0]);
   unsigned int nonsynctests = totaltests - 1;  // last test is for sync only
@@ -1418,7 +1418,7 @@ void ScribbleTest::synctest01slave2()
   undo();
 
   // disconnect and reconnect to whiteboard
-  startSyncTest(15);
+  startSyncTest(16);
   // wait for connection
   while(!scribbleDoc->scribbleSync->isSyncActive())
     ScribbleApp::processEvents();
