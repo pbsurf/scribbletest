@@ -89,21 +89,21 @@ ScribbleTest::ScribbleTest(ScribbleDoc* sd, BookmarkView* bv, ScribbleMode* sm)
 
 ScribbleTest::~ScribbleTest()
 {
-  if(syncSlave)
+  if(syncSlave) {
+    // ensure disconnect SDL event has been processed before deleting scribbleDoc!
+    SDL_Delay(20);
+    ScribbleApp::processEvents();
     delete syncSlave;
-
+  }
   if(scribbleConfig) {
     delete screenPaint;
     delete screenImg;
     delete bookmarkArea;
     delete scribbleDoc;
+    delete scribbleArea;
     delete scribbleMode;
     delete scribbleConfig;
   }
-  bookmarkArea = NULL;
-  scribbleArea = NULL;
-  scribbleMode = NULL;
-  scribbleConfig = NULL;
 }
 
 static void distributeTransform(Document* doc)
@@ -244,6 +244,7 @@ void ScribbleTest::runAll(bool runsynctest)
     if(scribbleDoc->openDocument((basefile + "_ref.html").c_str()) == Document::LOAD_OK)
       scribbleDoc->saveDocument((basefile + "_new.html").c_str());
 #endif
+
     scribbleDoc->newDocument();
     // attempt to open input file; fails quietly if not present
     Document::loadresult_t res = scribbleDoc->openDocument((basefile + "_in.html").c_str());
@@ -263,8 +264,10 @@ void ScribbleTest::runAll(bool runsynctest)
       // wait for slave to finish previous test
       while(syncSlave->waitForSyncDone)
         ScribbleApp::processEvents();
-      if(ii >= totaltests)
+      if(ii >= totaltests) {
+        syncSlave->scribbleDoc->newDocument();  // disconnect sync
         break;
+      }
       // create whiteboard
       //SCRIBBLE_LOG("\nRUNNING TEST %d\n\n", ii);
       swbXML.first_child().attribute("name").set_value(fstring("testdoc%d", ii).c_str());
