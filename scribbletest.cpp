@@ -1192,7 +1192,7 @@ void ScribbleTest::test12()
 void ScribbleTest::test13()
 {
   // setup output path
-  std::string sfilename = outPath + "/test13_out.html";
+  std::string sfilename = outPath + u8"/test13_\u4E0B\u5348.html";
   const char* filename = sfilename.c_str();
 
   // create page 1
@@ -1215,8 +1215,8 @@ void ScribbleTest::test13()
   scribbleArea->gotoPos(0, Point(0,0));
   // save
   if(!syncSlave) {
-    scribbleArea->cfg->set("singleFile", false);
-    scribbleDoc->saveDocument(filename);
+    //scribbleArea->cfg->set("singleFile", false);
+    scribbleDoc->saveDocument(filename, Document::SAVE_MULTIFILE);
     // reopen; only page 1 should be loaded
     scribbleDoc->openDocument(filename);
   }
@@ -1250,18 +1250,18 @@ void ScribbleTest::test13()
     // load all pages before deleting SVG files
     scribbleDoc->document->ensurePagesLoaded();
     // return to single file config for comparision of file result
-    scribbleArea->cfg->set("singleFile", true);
+    //scribbleArea->cfg->set("singleFile", true);
     // remove SVG files
     scribbleDoc->document->deleteFiles();   //ScribbleDoc::deleteDocument(filename);
 
     // test other file types
-    std::string svgfile = outPath + "/test13_out.svg";
+    std::string svgfile = outPath + u8"/test13_\u4E0B\u5348.svg";
     scribbleDoc->saveDocument(svgfile.c_str());
     scribbleDoc->openDocument(svgfile.c_str());
     scribbleDoc->document->ensurePagesLoaded();
     scribbleDoc->document->deleteFiles();   //ScribbleDoc::deleteDocument(svgfile.c_str());
 
-    std::string svgzfile = outPath + "/test13_out.svgz";
+    std::string svgzfile = outPath + u8"/test13_\u4E0B\u5348.svgz";
     scribbleDoc->saveDocument(svgzfile.c_str());
     scribbleDoc->openDocument(svgzfile.c_str());
     scribbleDoc->document->ensurePagesLoaded();
