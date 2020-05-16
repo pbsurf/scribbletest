@@ -328,6 +328,9 @@ void ScribbleTest::runAll(bool runsynctest)
         std::ofstream outstrm((basefile + "_out.png").c_str(), std::ios::binary);
         auto outenc = outthumb.encodePNG();
         outstrm.write((char*)outenc.data(), outenc.size());
+        std::ofstream diffstrm((basefile + "_diff.png").c_str(), std::ios::binary);
+        auto diffenc = outthumb.subtract(refthumb, 10, 0).encodePNG();
+        diffstrm.write((char*)diffenc.data(), diffenc.size());
       }
     }
     else {
