@@ -1,6 +1,7 @@
 #include "scribbletest.h"
 #include <fstream>
 
+#include "usvg/svgparser.h"
 #include "application.h"
 #include "strokebuilder.h"
 #include "scribblesync.h"
@@ -1372,6 +1373,19 @@ void ScribbleTest::test15()
   ie(180, 420, 0, pen);
   ie(140, 420, 0, pen);
   ie(0, 0, 0, pen, release);
+
+  SvgDocument* svgDoc = SvgParser().parseFragment(
+      "<g stroke='green' transform='translate(50, 50)'><rect fill='rgba(0, 0, 255, 0.8)' stroke='none' x='0' y='0' width='20' height='20'/>"
+      "<path fill='red' d='M10 10 l2 4 1 2 0 3 -1 1 -1 0z'/></g>");
+  Clipboard* clip = scribbleDoc->app->importExternalDoc(svgDoc);
+  scribbleDoc->app->clipboard.reset(clip);
+  scribbleDoc->app->clipboardPage = NULL;
+
+  doCommand(ID_PASTE);
+  doCommand(ID_DELSEL);
+  undo();
+  undo();
+  doCommand(ID_PASTE);
 }
 
 // back and forth test for whiteboard
