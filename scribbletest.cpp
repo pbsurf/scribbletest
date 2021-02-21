@@ -1003,9 +1003,6 @@ void ScribbleTest::test9()
   ie(385, 89, 0, pen);
   ie(0, 0, 0, pen, release);
 
-  // must refresh bookmarks so that findBookmark will work
-  bookmarkArea->repaintBookmarks();
-
   // drop a bookmark off page, then undo - added because this used to cause crash on undo
   scribbleMode->setMode(MODE_BOOKMARK);
   ie(50, 50, 0, pen, press);
@@ -1014,6 +1011,10 @@ void ScribbleTest::test9()
   ie(0, 0, 0, pen, release);
   undo();
   redo();
+
+  // must refresh bookmarks so that findBookmark will work
+  //bookmarkArea->repaintBookmarks();
+  screenPaint->beginFrame();  bookmarkArea->doPaintEvent(screenPaint);  screenPaint->endFrame();
 
   doCommand(ID_NEXTPAGENEW);
   scribbleArea->gotoPos(1, Point(-10,-10));  // account for previous behavior of NEXTPAGE
