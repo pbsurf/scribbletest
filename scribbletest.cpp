@@ -256,7 +256,7 @@ void ScribbleTest::runAll(bool runsynctest)
     // reset mode
     scribbleMode->setRuled(true);
     scribbleMode->setMode(MODE_STROKE);
-    scribbleDoc->app->setPen(ScribblePen(Color::BLACK, 1, 0));
+    scribbleDoc->app->setPen(ScribblePen(Color::BLACK, 1, ScribblePen::TIP_STROKE));
     scribbleDoc->app->bookmarkColor = Color::BLUE;
     // prevent unintended updates while inspecting:
     scribbleDoc->cfg->set("savePrompt", true);
@@ -358,7 +358,7 @@ void ScribbleTest::performanceTest()
 {
   scribbleArea->gotoPos(0, Point(0,0));
   scribbleMode->setMode(MODE_STROKE);
-  scribbleDoc->app->setPen(ScribblePen(Color::BLACK, 1, 2));
+  scribbleDoc->app->setPen(ScribblePen(Color::BLACK, 1, ScribblePen::TIP_FLAT, 1.0, 2.0));
   scribbleArea->frameCount = 0;
   Timestamp t0 = mSecSinceEpoch();
 
@@ -534,7 +534,7 @@ void ScribbleTest::s2(Dim xoffset, Dim yoffset)
 void ScribbleTest::f2(Dim xoffset, Dim yoffset)
 {
   ScribblePen oldpen = *scribbleDoc->app->getPen();
-  scribbleDoc->app->setPen(ScribblePen(Color::BLACK, 1.2, 2));
+  scribbleDoc->app->setPen(ScribblePen(Color::BLACK, 1.2, ScribblePen::TIP_FLAT, 1.0, 2.0));
   ie(10 + xoffset, -14.8 + yoffset, 0.3, pen, press);
   ie(-9.9 + xoffset, 0.1 + yoffset, 0.7, pen);
   ie(9.8 + xoffset, 15.1 + yoffset, 0.5, pen);
@@ -563,6 +563,70 @@ void ScribbleTest::hr(Dim xoffset, Dim yoffset)
   scribbleArea->createHyperRef("http://www.styluslabs.com");
   // have to clear the selection ourselves now
   scribbleArea->clearSelection();
+}
+
+void ScribbleTest::s3()
+{
+  ie(213.000, 51.000, 0.200, 1, 1, 0);
+  ie(211.000, 51.000, 0.250, 1, 0, 0);
+  ie(210.000, 51.000, 0.320, 1, 0, 0);
+  ie(206.000, 52.000, 0.390, 1, 0, 0);
+  ie(201.000, 54.000, 0.420, 1, 0, 0);
+  ie(194.000, 57.000, 0.450, 1, 0, 0);
+  ie(188.000, 60.000, 0.440, 1, 0, 0);
+  ie(182.000, 64.000, 0.370, 1, 0, 0);
+  ie(179.000, 66.000, 0.390, 1, 0, 0);
+  ie(175.000, 68.000, 0.310, 1, 0, 0);
+  ie(174.000, 69.000, 0.280, 1, 0, 0);
+  ie(173.000, 70.000, 0.220, 1, 0, 0);
+  ie(172.000, 71.000, 0.210, 1, 0, 0);
+  ie(172.000, 72.000, 0.170, 1, 0, 0);
+  ie(0.000, 0.000, 0.000, 1, -1, 0);
+  ie(176.000, 46.000, 0.190, 1, 1, 0);
+  ie(178.000, 47.000, 0.260, 1, 0, 0);
+  ie(181.000, 51.000, 0.330, 1, 0, 0);
+  ie(185.000, 56.000, 0.370, 1, 0, 0);
+  ie(190.000, 63.000, 0.420, 1, 0, 0);
+  ie(194.000, 68.000, 0.390, 1, 0, 0);
+  ie(197.000, 72.000, 0.340, 1, 0, 0);
+  ie(202.000, 78.000, 0.250, 1, 0, 0);
+  ie(203.000, 80.000, 0.280, 1, 0, 0);
+  ie(205.000, 82.000, 0.230, 1, 0, 0);
+  ie(205.000, 83.000, 0.190, 1, 0, 0);
+  ie(0.000, 0.000, 0.000, 1, -1, 0);
+}
+
+void ScribbleTest::s4()
+{
+  ie(217.000, 46.000, 0.200, 1, 1, 0);
+  ie(215.000, 46.000, 0.250, 1, 0, 0);
+  ie(212.000, 48.000, 0.320, 1, 0, 0);
+  ie(209.000, 51.000, 0.390, 1, 0, 0);
+  ie(203.000, 55.000, 0.420, 1, 0, 0);
+  ie(198.000, 58.000, 0.450, 1, 0, 0);
+  ie(192.000, 62.000, 0.440, 1, 0, 0);
+  ie(190.000, 63.000, 0.370, 1, 0, 0);
+  ie(187.000, 66.000, 0.390, 1, 0, 0);
+  ie(184.000, 68.000, 0.310, 1, 0, 0);
+  ie(181.000, 71.000, 0.280, 1, 0, 0);
+  ie(178.000, 72.000, 0.220, 1, 0, 0);
+  ie(174.000, 75.000, 0.210, 1, 0, 0);
+  ie(172.000, 76.000, 0.170, 1, 0, 0);
+  ie(0.000, 0.000, 0.000, 1, -1, 0);
+  ie(179.000, 54.000, 0.200, 1, 1, 0);
+  ie(180.000, 54.000, 0.250, 1, 0, 0);
+  ie(181.000, 54.000, 0.320, 1, 0, 0);
+  ie(182.000, 55.000, 0.390, 1, 0, 0);
+  ie(184.000, 58.000, 0.420, 1, 0, 0);
+  ie(187.000, 62.000, 0.450, 1, 0, 0);
+  ie(192.000, 68.000, 0.440, 1, 0, 0);
+  ie(194.000, 71.000, 0.370, 1, 0, 0);
+  ie(198.000, 75.000, 0.390, 1, 0, 0);
+  ie(201.000, 80.000, 0.310, 1, 0, 0);
+  ie(205.000, 82.000, 0.280, 1, 0, 0);
+  ie(208.000, 84.000, 0.220, 1, 0, 0);
+  ie(210.000, 85.000, 0.210, 1, 0, 0);
+  ie(0.000, 0.000, 0.000, 1, -1, 0);
 }
 
 void ScribbleTest::test0()
@@ -628,33 +692,7 @@ void ScribbleTest::test2()
   ie(121.8, 177.3, 0, 1, 0, 0);
   ie(0, 0, 0, 1, -1, 0);
   undo();
-  ie(213.000, 51.000, 0.000, 1, 1, 0);
-  ie(211.000, 51.000, 0.000, 1, 0, 0);
-  ie(210.000, 51.000, 0.000, 1, 0, 0);
-  ie(206.000, 52.000, 0.000, 1, 0, 0);
-  ie(201.000, 54.000, 0.000, 1, 0, 0);
-  ie(194.000, 57.000, 0.000, 1, 0, 0);
-  ie(188.000, 60.000, 0.000, 1, 0, 0);
-  ie(182.000, 64.000, 0.000, 1, 0, 0);
-  ie(179.000, 66.000, 0.000, 1, 0, 0);
-  ie(175.000, 68.000, 0.000, 1, 0, 0);
-  ie(174.000, 69.000, 0.000, 1, 0, 0);
-  ie(173.000, 70.000, 0.000, 1, 0, 0);
-  ie(172.000, 71.000, 0.000, 1, 0, 0);
-  ie(172.000, 72.000, 0.000, 1, 0, 0);
-  ie(0.000, 0.000, 0.000, 1, -1, 0);
-  ie(176.000, 46.000, 0.000, 1, 1, 0);
-  ie(178.000, 47.000, 0.000, 1, 0, 0);
-  ie(181.000, 51.000, 0.000, 1, 0, 0);
-  ie(185.000, 56.000, 0.000, 1, 0, 0);
-  ie(190.000, 63.000, 0.000, 1, 0, 0);
-  ie(194.000, 68.000, 0.000, 1, 0, 0);
-  ie(197.000, 72.000, 0.000, 1, 0, 0);
-  ie(202.000, 78.000, 0.000, 1, 0, 0);
-  ie(203.000, 80.000, 0.000, 1, 0, 0);
-  ie(205.000, 82.000, 0.000, 1, 0, 0);
-  ie(205.000, 83.000, 0.000, 1, 0, 0);
-  ie(0.000, 0.000, 0.000, 1, -1, 0);
+  s3();
   ie(154.000, 29.000, 0.000, 1, 1, 2);
   ie(154.000, 30.000, 0.000, 1, 0, 0);
   ie(155.000, 30.000, 0.000, 1, 0, 0);
@@ -705,35 +743,7 @@ void ScribbleTest::test2()
   ie(0.000, 0.000, 0.000, 1, -1, 0);
   ie(176.000, 70.000, 0.000, 1, 1, 0);
   ie(0.000, 0.000, 0.000, 1, -1, 0);
-  ie(217.000, 46.000, 0.000, 1, 1, 0);
-  ie(215.000, 46.000, 0.000, 1, 0, 0);
-  ie(212.000, 48.000, 0.000, 1, 0, 0);
-  ie(209.000, 51.000, 0.000, 1, 0, 0);
-  ie(203.000, 55.000, 0.000, 1, 0, 0);
-  ie(198.000, 58.000, 0.000, 1, 0, 0);
-  ie(192.000, 62.000, 0.000, 1, 0, 0);
-  ie(190.000, 63.000, 0.000, 1, 0, 0);
-  ie(187.000, 66.000, 0.000, 1, 0, 0);
-  ie(184.000, 68.000, 0.000, 1, 0, 0);
-  ie(181.000, 71.000, 0.000, 1, 0, 0);
-  ie(178.000, 72.000, 0.000, 1, 0, 0);
-  ie(174.000, 75.000, 0.000, 1, 0, 0);
-  ie(172.000, 76.000, 0.000, 1, 0, 0);
-  ie(0.000, 0.000, 0.000, 1, -1, 0);
-  ie(179.000, 54.000, 0.000, 1, 1, 0);
-  ie(180.000, 54.000, 0.000, 1, 0, 0);
-  ie(181.000, 54.000, 0.000, 1, 0, 0);
-  ie(182.000, 55.000, 0.000, 1, 0, 0);
-  ie(184.000, 58.000, 0.000, 1, 0, 0);
-  ie(187.000, 62.000, 0.000, 1, 0, 0);
-  ie(192.000, 68.000, 0.000, 1, 0, 0);
-  ie(194.000, 71.000, 0.000, 1, 0, 0);
-  ie(198.000, 75.000, 0.000, 1, 0, 0);
-  ie(201.000, 80.000, 0.000, 1, 0, 0);
-  ie(205.000, 82.000, 0.000, 1, 0, 0);
-  ie(208.000, 84.000, 0.000, 1, 0, 0);
-  ie(210.000, 85.000, 0.000, 1, 0, 0);
-  ie(0.000, 0.000, 0.000, 1, -1, 0);
+  s4();
 }
 
 // this test is mainly intended for finding memory leaks (so run it under valgrind)
@@ -1308,6 +1318,15 @@ void ScribbleTest::test14()
   doCommand(ID_UNDO);
   doCommand(ID_REDO);
 
+  // test smoothing and simplification
+  scribbleDoc->app->setPen(ScribblePen(Color::BLACK, 1.2, ScribblePen::TIP_FLAT, 1.0, 2.0));
+  scribbleDoc->cfg->set("inputSimplify", 4);
+  s3();
+  scribbleDoc->cfg->set("inputSmoothing", 4);
+  s4();
+  scribbleDoc->cfg->set("inputSmoothing", 0);
+  scribbleDoc->cfg->set("inputSimplify", 0);
+
   // test autosave
   if(!syncSlave) {
     scribbleDoc->saveBackup(filename.c_str(), "");
@@ -1336,7 +1355,7 @@ void ScribbleTest::test15()
   ie(0, 0, 0, pen, release);
 
   // test z-order for highlighter (draw under)
-  scribbleDoc->app->setPen(ScribblePen(Color::YELLOW, 20, 0, ScribblePen::DRAW_UNDER));
+  scribbleDoc->app->setPen(ScribblePen(Color::YELLOW, 20, ScribblePen::TIP_CHISEL | ScribblePen::DRAW_UNDER));
   s2(250, 190);
   undo();
   redo();
@@ -1349,7 +1368,7 @@ void ScribbleTest::test15()
   undo();
 
   // test of reflow that should fail w/ cmpRuled bug (not sorting strokes on line left-to-right)
-  scribbleDoc->app->setPen(ScribblePen(Color::BLACK, 1, 0));
+  scribbleDoc->app->setPen(ScribblePen(Color::BLACK, 1, ScribblePen::TIP_STROKE));
   for(int offset = 15; offset < 500; offset += 139) {
     s1(offset + 60, 120);
     s1(offset + 90, 120);

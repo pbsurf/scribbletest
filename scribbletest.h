@@ -56,6 +56,8 @@ private:
   void s3(Dim xoffset, Dim yoffset);
   void f2(Dim xoffset, Dim yoffset);
   void hr(Dim xoffset, Dim yoffset);
+  void s3();
+  void s4();
 
   void test0();
   void test1();
