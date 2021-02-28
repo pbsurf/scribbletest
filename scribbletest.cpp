@@ -256,7 +256,7 @@ void ScribbleTest::runAll(bool runsynctest)
     // reset mode
     scribbleMode->setRuled(true);
     scribbleMode->setMode(MODE_STROKE);
-    scribbleDoc->app->setPen(ScribblePen(Color::BLACK, 1, ScribblePen::TIP_STROKE));
+    scribbleDoc->app->setPen(ScribblePen(Color::BLACK, 1, ScribblePen::TIP_ROUND));
     scribbleDoc->app->bookmarkColor = Color::BLUE;
     // prevent unintended updates while inspecting:
     scribbleDoc->cfg->set("savePrompt", true);
@@ -358,7 +358,7 @@ void ScribbleTest::performanceTest()
 {
   scribbleArea->gotoPos(0, Point(0,0));
   scribbleMode->setMode(MODE_STROKE);
-  scribbleDoc->app->setPen(ScribblePen(Color::BLACK, 1, ScribblePen::TIP_FLAT, 1.0, 2.0));
+  scribbleDoc->app->setPen(ScribblePen(Color::BLACK, 1, ScribblePen::TIP_FLAT | ScribblePen::WIDTH_PR, 1.0, 2.0));
   scribbleArea->frameCount = 0;
   Timestamp t0 = mSecSinceEpoch();
 
@@ -534,7 +534,7 @@ void ScribbleTest::s2(Dim xoffset, Dim yoffset)
 void ScribbleTest::f2(Dim xoffset, Dim yoffset)
 {
   ScribblePen oldpen = *scribbleDoc->app->getPen();
-  scribbleDoc->app->setPen(ScribblePen(Color::BLACK, 1.2, ScribblePen::TIP_FLAT, 1.0, 2.0));
+  scribbleDoc->app->setPen(ScribblePen(Color::BLACK, 1.2, ScribblePen::TIP_FLAT | ScribblePen::WIDTH_PR, 1.0, 2.0));
   ie(10 + xoffset, -14.8 + yoffset, 0.3, pen, press);
   ie(-9.9 + xoffset, 0.1 + yoffset, 0.7, pen);
   ie(9.8 + xoffset, 15.1 + yoffset, 0.5, pen);
@@ -1319,7 +1319,7 @@ void ScribbleTest::test14()
   doCommand(ID_REDO);
 
   // test smoothing and simplification
-  scribbleDoc->app->setPen(ScribblePen(Color::BLACK, 1.2, ScribblePen::TIP_FLAT, 1.0, 2.0));
+  scribbleDoc->app->setPen(ScribblePen(Color::BLACK, 1.2, ScribblePen::TIP_FLAT | ScribblePen::WIDTH_PR, 1.0, 2.0));
   scribbleDoc->cfg->set("inputSimplify", 4);
   s3();
   scribbleDoc->cfg->set("inputSmoothing", 4);
@@ -1368,7 +1368,7 @@ void ScribbleTest::test15()
   undo();
 
   // test of reflow that should fail w/ cmpRuled bug (not sorting strokes on line left-to-right)
-  scribbleDoc->app->setPen(ScribblePen(Color::BLACK, 1, ScribblePen::TIP_STROKE));
+  scribbleDoc->app->setPen(ScribblePen(Color::BLACK, 1, ScribblePen::TIP_ROUND));
   for(int offset = 15; offset < 500; offset += 139) {
     s1(offset + 60, 120);
     s1(offset + 90, 120);
