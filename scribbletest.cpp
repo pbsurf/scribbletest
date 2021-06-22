@@ -1286,8 +1286,6 @@ void ScribbleTest::test13()
 
 void ScribbleTest::test14()
 {
-  std::string filename = outPath + "/test14_autosave.html";
-
   scribbleMode->moveSelMode = MODE_MOVESELFREE;  // selectAll no longer ignores moveSelMode
   // easier to figure out what's going on if screen space and Dim space are the same
   scribbleArea->gotoPos(0, Point(0,0));
@@ -1328,13 +1326,14 @@ void ScribbleTest::test14()
   scribbleDoc->cfg->set("inputSimplify", 0);
 
   // test autosave
-  if(!syncSlave) {
-    scribbleDoc->saveBackup(filename.c_str(), "");
-    // reopen
-    scribbleDoc->openDocument(filename.c_str(), false);  // delayload = false
-    // delete the autosave files
-    scribbleDoc->document->deleteFiles();   //ScribbleDoc::deleteDocument(filename.c_str());
-  }
+  //if(!syncSlave) {
+  //  std::string filename = outPath + "/test14_autosave.html";
+  //  scribbleDoc->saveBackup(filename.c_str(), "");
+  //  // reopen
+  //  scribbleDoc->openDocument(filename.c_str(), false);  // delayload = false
+  //  // delete the autosave files
+  //  scribbleDoc->document->deleteFiles();   //ScribbleDoc::deleteDocument(filename.c_str());
+  //}
 }
 
 // add snap to grid and line drawing tests too!
