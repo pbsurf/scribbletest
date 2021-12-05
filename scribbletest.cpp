@@ -803,7 +803,6 @@ void ScribbleTest::test4()
   doCommand(ID_DELSEL);
   undo();
 
-  /*
   doCommand(ID_NEXTPAGE);  // make sure we're on second page
   //doCommand(ID_PASTE);
   scribbleMode->setMode(MODE_PAGESEL);
@@ -817,7 +816,6 @@ void ScribbleTest::test4()
   doCommand(ID_PASTE);
   doCommand(ID_PASTE);
   scribbleArea->gotoPage(0);  // restore view
-  */
 }
 
 // test setting page properties and growing page
