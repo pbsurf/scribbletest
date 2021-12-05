@@ -1306,6 +1306,8 @@ void ScribbleTest::test14()
   ie(550, 300, 0, pen, INPUTEVENT_MOVE, MODEMOD_PENBTN);
   ie(0, 0, 0, pen, release);
 
+  /*doCommand(ID_COPYSEL);*/
+
   // test rotation
   ie(435, 140, 0, pen, press);
   ie(460, 160, 0, pen);
@@ -1325,15 +1327,21 @@ void ScribbleTest::test14()
   scribbleDoc->cfg->set("inputSmoothing", 0);
   scribbleDoc->cfg->set("inputSimplify", 0);
 
-  // test autosave
-  //if(!syncSlave) {
-  //  std::string filename = outPath + "/test14_autosave.html";
-  //  scribbleDoc->saveBackup(filename.c_str(), "");
-  //  // reopen
-  //  scribbleDoc->openDocument(filename.c_str(), false);  // delayload = false
-  //  // delete the autosave files
-  //  scribbleDoc->document->deleteFiles();   //ScribbleDoc::deleteDocument(filename.c_str());
-  //}
+  /*
+  doCommand(ID_NEXTPAGENEW);
+  doCommand(ID_PASTE);
+  scribbleMode->setMode(MODE_PAGESEL);
+  // tap on page
+  ie(300, 400, 0, pen, press);
+  ie(301, 399, 0, pen);
+  ie(0, 0, 0, pen, release);
+  doCommand(ID_CUTSEL);
+
+  doCommand(ID_NEXTSCREEN);  // want to paste after first page
+  doCommand(ID_PASTE);
+  doCommand(ID_PASTE);
+  scribbleArea->gotoPos(0, Point(0,0));  // restore view
+  */
 }
 
 // add snap to grid and line drawing tests too!
