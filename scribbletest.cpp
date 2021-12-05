@@ -802,6 +802,22 @@ void ScribbleTest::test4()
   doCommand(ID_SELALL);
   doCommand(ID_DELSEL);
   undo();
+
+  /*
+  doCommand(ID_NEXTPAGE);  // make sure we're on second page
+  //doCommand(ID_PASTE);
+  scribbleMode->setMode(MODE_PAGESEL);
+  // tap on page
+  ie(300, 400, 0, pen, press);
+  ie(301, 399, 0, pen);
+  ie(0, 0, 0, pen, release);
+  doCommand(ID_CUTSEL);
+
+  doCommand(ID_NEXTSCREEN);  // want to paste after first page
+  doCommand(ID_PASTE);
+  doCommand(ID_PASTE);
+  scribbleArea->gotoPage(0);  // restore view
+  */
 }
 
 // test setting page properties and growing page
@@ -1306,8 +1322,6 @@ void ScribbleTest::test14()
   ie(550, 300, 0, pen, INPUTEVENT_MOVE, MODEMOD_PENBTN);
   ie(0, 0, 0, pen, release);
 
-  /*doCommand(ID_COPYSEL);*/
-
   // test rotation
   ie(435, 140, 0, pen, press);
   ie(460, 160, 0, pen);
@@ -1326,22 +1340,6 @@ void ScribbleTest::test14()
   s4();
   scribbleDoc->cfg->set("inputSmoothing", 0);
   scribbleDoc->cfg->set("inputSimplify", 0);
-
-  /*
-  doCommand(ID_NEXTPAGENEW);
-  doCommand(ID_PASTE);
-  scribbleMode->setMode(MODE_PAGESEL);
-  // tap on page
-  ie(300, 400, 0, pen, press);
-  ie(301, 399, 0, pen);
-  ie(0, 0, 0, pen, release);
-  doCommand(ID_CUTSEL);
-
-  doCommand(ID_NEXTSCREEN);  // want to paste after first page
-  doCommand(ID_PASTE);
-  doCommand(ID_PASTE);
-  scribbleArea->gotoPos(0, Point(0,0));  // restore view
-  */
 }
 
 // add snap to grid and line drawing tests too!
