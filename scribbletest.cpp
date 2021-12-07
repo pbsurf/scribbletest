@@ -854,6 +854,10 @@ void ScribbleTest::test6()
   ie(387.000, 269.000, 0.000, 1, 0, 0);
   ie(452.000, 215.000, 0.000, 1, 0, 0);
   ie(0.000, 0.000, 0.000, 1, -1, 0);
+  // tap selection to switch to ruled mode
+  ie(442, 262, 0, pen, press);
+  ie(441, 262, 0, pen);
+  ie(0, 0, 0, pen, release);
   // now move the selection
   ie(441.000, 263.000, 0.000, 1, 1, 0);
   ie(432.000, 319.000, 0.000, 1, 0, 0);
@@ -1195,10 +1199,10 @@ void ScribbleTest::test12()
   f2(250, 182);
   hr(300, 181);
   doCommand(ID_SELALL);
-  // tap the selection to change to move sel free mode (since selectAll no longer ignores moveSelMode)
-  ie(300, 160, 0, pen, press);
-  ie(298, 162, 0, pen);
-  ie(0, 0, 0, pen, release);
+  // tap the selection to change to move sel free mode (since selectAll no longer ignores moveSelMode) ... nevermind
+  //ie(300, 160, 0, pen, press);
+  //ie(298, 162, 0, pen);
+  //ie(0, 0, 0, pen, release);
   // resize selection
   ie(320, 198, 0, pen, press);
   ie(350, 250, 0, pen);
