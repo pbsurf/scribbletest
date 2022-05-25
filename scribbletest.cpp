@@ -843,7 +843,7 @@ void ScribbleTest::test5()
 void ScribbleTest::test6()
 {
   // make a lasso selection
-  scribbleMode->setMode(20);
+  scribbleMode->setMode(MODE_SELECTLASSO);
   ie(475.000, 199.000, 0.000, 1, 1, 0);
   ie(450.000, 175.000, 0.000, 1, 0, 0);
   ie(329.000, 269.000, 0.000, 1, 0, 0);
@@ -869,6 +869,16 @@ void ScribbleTest::test6()
   ie(425.000, 473.000, 0.000, 1, 0, 0);
   ie(429.000, 476.000, 0.000, 1, 0, 0);
   ie(0.000, 0.000, 0.000, 1, -1, 0);
+
+  // tests added for dup sel (and for resaving page containing jpeg image)
+  doCommand(ID_NEXTPAGE);
+  // ruled select in left margin
+  scribbleMode->setMode(MODE_SELECTRULED);
+  ie(24, 61, 0, pen, press);
+  ie(23, 139, 0, pen);
+  ie(0, 0, 0, pen, release);
+  doCommand(ID_DUPSEL);
+  doCommand(ID_PREVPAGE);
 }
 
 // test insert space reflow
