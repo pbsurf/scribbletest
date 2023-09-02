@@ -65,7 +65,7 @@ ScribbleTest::ScribbleTest(const std::string& path)
   scribbleDoc->newDocument();
   screenRect = Rect::ltwh(0,0,600,800);
   screenImg = new Image(screenRect.width(), screenRect.height());
-  screenPaint = new Painter(screenImg);
+  screenPaint = new Painter(screenImg, Painter::sharedVg);
   scribbleArea->screenRect = screenRect;
   screenPaint->beginFrame();
   scribbleArea->doPaintEvent(screenPaint);  // ensure that ScribbleView::imgPaint is inited
@@ -321,7 +321,7 @@ void ScribbleTest::runAll(bool runsynctest)
     else if(testCompareFiles(outfile.c_str(), (basefile + "_ref.html").c_str(), true)) {
       Image refthumb = ScribbleDoc::extractThumbnail((basefile + "_ref.html").c_str());
       Image outthumb = ScribbleDoc::extractThumbnail(outfile.c_str());
-      if(Painter::sRGB && Painter::glRender && outthumb != refthumb) {
+      if(Application::painter->sRGB() && Application::glRender && outthumb != refthumb) {
         nThumbsFailed++;
         std::ofstream refstrm((basefile + "_ref.png").c_str(), std::ios::binary);
         auto refenc = refthumb.encodePNG();
@@ -350,7 +350,7 @@ void ScribbleTest::runAll(bool runsynctest)
     nFailed = syncSlave->nFailed;
   resultStr = fstring("Tests completed in %d ms with %d failed tests (%s) and %d failed thumbnails.",
       int(runAllTime), nFailed, joinStr(slFailed, ", ").c_str(), nThumbsFailed);
-  if(!Painter::sRGB || !Painter::glRender)
+  if(!Application::painter->sRGB() || !Application::glRender)
     resultStr += "\nWARNING: ScribbleTest requires GL render and sRGB=1 to get correct thumbnails!";
 }
 
