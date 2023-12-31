@@ -65,7 +65,7 @@ ScribbleTest::ScribbleTest(const std::string& path)
   scribbleDoc->newDocument();
   screenRect = Rect::ltwh(0,0,600,800);
   screenImg = new Image(screenRect.width(), screenRect.height());
-  screenPaint = new Painter(screenImg, Painter::sharedVg);
+  screenPaint = new Painter(Painter::PAINT_GL | Painter::SRGB_AWARE, screenImg);
   scribbleArea->screenRect = screenRect;
   screenPaint->beginFrame();
   scribbleArea->doPaintEvent(screenPaint);  // ensure that ScribbleView::imgPaint is inited
