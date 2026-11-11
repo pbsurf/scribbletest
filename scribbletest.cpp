@@ -159,32 +159,20 @@ void ScribbleTest::syncSlaveMsg(std::string msg, int level)
   std::string reffile = fstring("%s/test%d_ref.html", refPath.c_str(), syncTestNum);
   scribbleDoc->saveDocument(outfile.c_str());
   // compare output to reference; tests of one-file-per-page must handle the svg files themselves
-  if(testCompareFiles(outfile.c_str(), reffile.c_str(), true))
+  DocCompareParams params;
+  params.svgOnly = true;
+  DocCompareResult res = compareDocs(readFile(reffile.c_str()), readFile(outfile.c_str()), params);
+  if(res.verdict == DocCompareResult::PASS)
     scribbleDoc->document->deleteFiles();  //remove(outfile.c_str());
-  else
-    ++nFailed;
-  waitForSyncDone = false;
-}
-
-// if svgonly is true, comparison will start from first "<svg" instead of beginning of file
-bool ScribbleTest::testCompareFiles(const char* f1, const char* f2, bool svgonly)
-{
-  std::vector<char> b1;
-  std::vector<char> b2;
-  readFile(&b1, f1);
-  readFile(&b2, f2);
-  // fail if either file is missing
-  if(b1.empty() || b2.empty())
-    return false;
-  // convert to null-terminated strings (overwrites last char)
-  b1.back() = '\0';
-  b2.back() = '\0';
-  if(svgonly) {
-    char* s1 = strstr(b1.data(), "<svg");
-    char* s2 = strstr(b2.data(), "<svg");
-    return s1 && s2 && strcmp(s1, s2) == 0;
+  else if(res.verdict == DocCompareResult::MINOR) {
+    SCRIBBLE_LOG("sync test%d MINOR: %s\n", syncTestNum, res.summary().c_str());
+    ++nMinor;
   }
-  return b1.size() == b2.size() && strcmp(b1.data(), b2.data()) == 0;
+  else {
+    SCRIBBLE_LOG("sync test%d FAIL: %s\n", syncTestNum, res.summary().c_str());
+    ++nFailed;
+  }
+  waitForSyncDone = false;
 }
 
 // remove thumbnail <img> (if present) so that document content can be compared separately from thumbnail
@@ -250,9 +238,10 @@ void ScribbleTest::checkTestOutput(const std::string& refbase, const std::string
   else {
     std::string refcontent = stripThumbnail(refhtml);
     std::string outcontent = stripThumbnail(outhtml);
-    if(outcontent != refcontent) {
-      rep.verdict = R::FAIL;
-      rep.notes.push_back("document content differs");
+    DocCompareResult doc = compareDocs(refcontent, outcontent, docParams);
+    if(doc.verdict != DocCompareResult::PASS) {
+      rep.verdict = std::max(rep.verdict, R::Verdict(doc.verdict));
+      rep.notes.push_back(std::string("document ") + R::verdictStr(R::Verdict(doc.verdict)) + ": " + doc.summary());
       rep.contentDiff = diffExcerpt(refcontent, outcontent);
     }
 
@@ -454,6 +443,7 @@ void ScribbleTest::runAll(const std::string& syncServer)
       continue;
     std::string refbase = fstring("%s/test%d", refPath.c_str(), ii);
     std::string outbase = fstring("%s/test%d", outPath.c_str(), ii);
+    docParams = DocCompareParams();
     renderParams = ImageCompareParams();
     // reset global state that tests may change (e.g. test15 switches to relative path data), so that each test's
     //  result doesn't depend on which tests ran before it (--only)
@@ -560,8 +550,10 @@ void ScribbleTest::runAll(const std::string& syncServer)
   Element::SVG_NO_TIMESTAMP = false;
   ScribbleView::unitsPerPx = unitsPerPx;
   ScribbleApp::app->loadConfig();
-  if(syncSlave)
+  if(syncSlave) {
     nFailed = syncSlave->nFailed;
+    nMinor = syncSlave->nMinor;
+  }
   resultStr = details + fstring("%d tests completed in %d ms: %d failed (%s), %d minor (%s)",
       int(reports.size()), int(runAllTime), nFailed, joinStr(slFailed, ", ").c_str(),
       nMinor, joinStr(slMinor, ", ").c_str());

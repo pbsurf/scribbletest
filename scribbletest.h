@@ -4,6 +4,7 @@
 #include "scribbledoc.h"
 #include "bookmarkview.h"
 #include "imagecompare.h"
+#include "doccompare.h"
 #include <set>
 
 class ScribbleTest
@@ -45,7 +46,8 @@ private:
   std::string refPath;
   std::string outPath;
   int currTest = 0;
-  // full resolution render comparison; reset before each test, so a test can loosen it if needed (e.g. for images)
+  // document and full resolution render comparison; reset before each test, so a test can loosen them if needed
+  DocCompareParams docParams;
   ImageCompareParams renderParams;
   // thumbnails are only checked loosely, as a test of thumbnail generation
   ImageCompareParams thumbParams = {64, 0};
@@ -78,7 +80,6 @@ private:
   void undo() { scribbleDoc->doCommand(ID_UNDO); }
   void redo() { scribbleDoc->doCommand(ID_REDO); }
   void doCommand(int cmd) { scribbleDoc->doCommand(cmd); }
-  bool testCompareFiles(const char* f1, const char* f2, bool svgonly = false);
   void ie(Dim x, Dim y, Dim p, int src, int ev = 0, int mm = 0);
   void mtinput(inputevent_t ev1, Dim x1, Dim y1, inputevent_t ev2, Dim x2, Dim y2);
   void ss(Dim offset);

@@ -4,6 +4,7 @@
 
 #include "scribbletest.h"
 #include "imagecompare.h"
+#include "doccompare.h"
 #include "scribbleapp.h"
 #include "application.h"
 #include "ulib/fileutil.h"
@@ -26,7 +27,8 @@ static int usage(const char* argv0)
       "  --strict             count MINOR render differences as failures\n"
       "  --sync <server>      also run sync tests using whiteboard server <server>\n"
       "  --perf               run performance test instead of regular tests\n"
-      "  --compare            compare two images as render tests do (exit code: 0 PASS, 1 MINOR, 2 FAIL)\n"
+      "  --compare            compare two images (.png) or documents (.html, .svg) as tests do\n"
+      "                       (exit code: 0 PASS, 1 MINOR, 2 FAIL); --tol is pixel or numeric tolerance\n"
       "  Exit code is 1 if any test fails, else 0\n", argv0, argv0);
   return 3;
 }
@@ -34,14 +36,23 @@ static int usage(const char* argv0)
 static int compareMain(int argc, char* argv[])
 {
   ImageCompareParams params;
+  DocCompareParams docparams;
   int argi = 2;
   if(argi + 1 < argc && strcmp(argv[argi], "--tol") == 0) {
     params.tol = atoi(argv[argi + 1]);
+    docparams.numTol = atof(argv[argi + 1]);
     argi += 2;
   }
   int nfiles = argc - argi;
   if(nfiles < 2 || nfiles > 3)
     return usage(argv[0]);
+  StringRef reffile(argv[argi]);
+  if(reffile.endsWith(".html") || reffile.endsWith(".svg")) {
+    DocCompareResult res = compareDocs(readFile(argv[argi]), readFile(argv[argi + 1]), docparams);
+    const char* v[] = {"PASS", "MINOR", "FAIL"};
+    printf("%s: %s\n", v[res.verdict], res.summary().c_str());
+    return int(res.verdict);
+  }
   Image ref = loadImageFile(argv[argi]);
   Image out = loadImageFile(argv[argi + 1]);
   ImageCompareResult res = compareImages(ref, out, params);
