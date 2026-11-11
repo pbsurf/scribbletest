@@ -186,15 +186,76 @@ bool ScribbleTest::testCompareFiles(const char* f1, const char* f2, bool svgonly
   return b1.size() == b2.size() && strcmp(b1.data(), b2.data()) == 0;
 }
 
-// a bunch of integration tests ... any "*_out.html" files present after test indicate a failure
-// TODO: add some tests to capture scribbleArea->imgPaint->image and compare to a ref
+// remove thumbnail <img> (if present) so that document content can be compared separately from thumbnail
+static std::string stripThumbnail(std::string html)
+{
+  size_t pos = html.find("id='thumbnail'");
+  if(pos == std::string::npos) return html;
+  size_t start = html.rfind('<', pos);
+  size_t end = html.find("/>", pos);
+  if(start == std::string::npos || end == std::string::npos) return html;
+  return html.erase(start, end + 2 - start);
+}
+
+// compare test output to refs: document content must match exactly; thumbnail and full resolution render of
+//  screen are compared w/ tolerance (see imagecompare.h).  Diagnostic output files are written for differences.
+ImageCompareResult::Verdict ScribbleTest::checkTestOutput(const std::string& basefile, std::vector<std::string>& notes)
+{
+  typedef ImageCompareResult R;
+  R::Verdict verdict = R::PASS;
+  std::string outfile = basefile + "_out.html";
+  std::string reffile = basefile + "_ref.html";
+  std::string outhtml = readFile(outfile.c_str());
+  std::string refhtml = readFile(reffile.c_str());
+  if(refhtml.empty()) {
+    verdict = R::FAIL;
+    notes.push_back("no ref document");
+  }
+  else if(stripThumbnail(outhtml) != stripThumbnail(refhtml)) {
+    verdict = R::FAIL;
+    notes.push_back("document content differs");
+  }
+
+  if(!refhtml.empty()) {
+    Image refthumb = ScribbleDoc::extractThumbnail(reffile.c_str());
+    Image outthumb = ScribbleDoc::extractThumbnail(outfile.c_str());
+    R thumb = compareImages(refthumb, outthumb, thumbParams);
+    if(thumb.verdict != R::PASS) {
+      verdict = std::max(verdict, thumb.verdict);
+      notes.push_back("thumbnail " + std::string(R::verdictStr(thumb.verdict)) + ": " + thumb.summary());
+      if(!refthumb.isNull()) saveImagePNG(refthumb, basefile + "_thumb_ref.png");
+      if(!outthumb.isNull()) saveImagePNG(outthumb, basefile + "_thumb_out.png");
+      if(!thumb.diffImg.isNull()) saveImagePNG(thumb.diffImg, basefile + "_thumb_diff.png");
+    }
+  }
+
+  std::string renderref = basefile + "_render_ref.png";
+  R render = compareImages(loadImageFile(renderref), *screenImg, renderParams);
+  if(render.verdict != R::PASS) {
+    verdict = std::max(verdict, render.verdict);
+    bool noref = getFileSize(renderref) <= 0;
+    notes.push_back(noref ? "no render ref" : "render " + std::string(R::verdictStr(render.verdict)) + ": " + render.summary());
+    saveImagePNG(*screenImg, basefile + "_render_out.png");
+    if(!render.diffImg.isNull()) saveImagePNG(render.diffImg, basefile + "_render_diff.png");
+  }
+
+  // keep output document only if it differs from ref (for inspection or to update ref)
+  if(outhtml == refhtml)
+    scribbleDoc->document->deleteFiles();
+  return verdict;
+}
+
+// a bunch of integration tests: each test is run on a fresh document (or testN_in.html if present), then output
+//  is compared to testN_ref.html and testN_render_ref.png - see checkTestOutput().  Output files (*_out.*, *_diff.*)
+//  present after the run are for tests that did not PASS.
 
 void ScribbleTest::runAll(const std::string& syncServer)
 {
   bool runsynctest = !syncServer.empty();
   nFailed = 0;
-  nThumbsFailed = 0;
-  std::vector<std::string> slFailed;
+  nMinor = 0;
+  std::vector<std::string> slFailed, slMinor;
+  std::string details;
   void (ScribbleTest::*tests[])() = {
     &ScribbleTest::test0,
     &ScribbleTest::test1,
@@ -242,6 +303,11 @@ void ScribbleTest::runAll(const std::string& syncServer)
   Timestamp runAllTime = mSecSinceEpoch();
   for(unsigned int ii = 0; true; ii++) {
     std::string basefile = fstring("%s/test%d", outPath.c_str(), ii);
+    // remove output from previous run
+    for(const char* suffix : {"_out.html", "_render_out.png", "_render_diff.png",
+        "_thumb_ref.png", "_thumb_out.png", "_thumb_diff.png"})
+      removeFile(basefile + suffix);
+    renderParams = ImageCompareParams();
     doCommand(ID_RESETZOOM);
     // enable this to update ref files (saving as *_new.html)
 #ifdef REFRESH_REFS
@@ -301,14 +367,10 @@ void ScribbleTest::runAll(const std::string& syncServer)
 
     // distribute transform to stroke points to match old behavior ... remove this later(?)
     distributeTransform(scribbleDoc->document);
-    //screenPaint->beginFrame();
-    //bookmarkArea->doPaintEvent(screenPaint);
-    //screenPaint->endFrame();
+    // render screen at full resolution (full repaint, so independent of previous tests)
     screenPaint->beginFrame();
     scribbleArea->doPaintEvent(screenPaint);
     screenPaint->endFrame();
-    // We haven't looked the png output in ages, so stop generating for now
-    //screenImg->save(basefile + "_out.png", "png");
     // include dirtyCount in output file as a check on undo system
     int dirtycount = scribbleDoc->document->dirtyCount;
     for(unsigned int pp = 0; pp < scribbleDoc->document->pages.size(); pp++)
@@ -319,29 +381,18 @@ void ScribbleTest::runAll(const std::string& syncServer)
     if(!scribbleDoc->saveDocument(outfile.c_str()))
       SCRIBBLE_LOG("ScribbleTest: error saving %s", outfile.c_str());
     // compare output to reference; tests of one-file-per-page must handle the svg files themselves
-    // we've had so many problems with thumbnails that we will count mismatches of those separately
-    if(testCompareFiles(outfile.c_str(), (basefile + "_ref.html").c_str()))
-      scribbleDoc->document->deleteFiles();  // remove(outfile.c_str());
-    else if(testCompareFiles(outfile.c_str(), (basefile + "_ref.html").c_str(), true)) {
-      Image refthumb = ScribbleDoc::extractThumbnail((basefile + "_ref.html").c_str());
-      Image outthumb = ScribbleDoc::extractThumbnail(outfile.c_str());
-      if(outthumb != refthumb) {  //Application::painter->sRGB() &&  && Application::glRender
-        nThumbsFailed++;
-        std::ofstream refstrm((basefile + "_ref.png").c_str(), std::ios::binary);
-        auto refenc = refthumb.encodePNG();
-        refstrm.write((char*)refenc.data(), refenc.size());
-        std::ofstream outstrm((basefile + "_out.png").c_str(), std::ios::binary);
-        auto outenc = outthumb.encodePNG();
-        outstrm.write((char*)outenc.data(), outenc.size());
-        std::ofstream diffstrm((basefile + "_diff.png").c_str(), std::ios::binary);
-        auto diffenc = outthumb.subtract(refthumb, 10, 0).encodePNG();
-        diffstrm.write((char*)diffenc.data(), diffenc.size());
-      }
-    }
-    else {
+    std::vector<std::string> notes;
+    ImageCompareResult::Verdict verdict = checkTestOutput(basefile, notes);
+    if(verdict == ImageCompareResult::FAIL) {
       slFailed.push_back(std::to_string(ii));
       nFailed++;
     }
+    else if(verdict == ImageCompareResult::MINOR) {
+      slMinor.push_back(std::to_string(ii));
+      nMinor++;
+    }
+    if(verdict != ImageCompareResult::PASS)
+      details += fstring("test%d %s - %s\n", ii, ImageCompareResult::verdictStr(verdict), joinStr(notes, "; ").c_str());
   }
   runAllTime = mSecSinceEpoch() - runAllTime;
   // restore global config
@@ -352,10 +403,8 @@ void ScribbleTest::runAll(const std::string& syncServer)
   ScribbleApp::app->loadConfig();
   if(syncSlave)
     nFailed = syncSlave->nFailed;
-  resultStr = fstring("Tests completed in %d ms with %d failed tests (%s) and %d failed thumbnails.",
-      int(runAllTime), nFailed, joinStr(slFailed, ", ").c_str(), nThumbsFailed);
-  //if(!Application::painter->sRGB() || !Application::glRender)
-  //  resultStr += "\nWARNING: ScribbleTest requires GL render and sRGB=1 to get correct thumbnails!";
+  resultStr = details + fstring("Tests completed in %d ms: %d failed (%s), %d minor (%s)",
+      int(runAllTime), nFailed, joinStr(slFailed, ", ").c_str(), nMinor, joinStr(slMinor, ", ").c_str());
 }
 
 void ScribbleTest::performanceTest()

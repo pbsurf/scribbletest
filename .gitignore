@@ -1,0 +1,6 @@
+# WriteTest output files - present only for tests that did not PASS (refs are testN_ref.html, testN_render_ref.png)
+*_out.html
+*_out.png
+*_diff.png
+*_thumb_ref.png
+perftest.html

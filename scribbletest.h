@@ -3,6 +3,7 @@
 
 #include "scribbledoc.h"
 #include "bookmarkview.h"
+#include "imagecompare.h"
 
 class ScribbleTest
 {
@@ -20,7 +21,7 @@ public:
   // results to be read by caller
   std::string resultStr;
   int nFailed = 0;
-  int nThumbsFailed = 0;
+  int nMinor = 0;  // tests w/ MINOR render differences (not counted as failures unless --strict)
 
 private:
   ScribbleConfig* scribbleConfig;
@@ -33,6 +34,11 @@ private:
   Rect screenRect;
   std::string outPath;
   int currTest = 0;
+  // full resolution render comparison; reset before each test, so a test can loosen it if needed (e.g. for images)
+  ImageCompareParams renderParams;
+  // thumbnails are only checked loosely, as a test of thumbnail generation
+  ImageCompareParams thumbParams = {64, 0};
+  ImageCompareResult::Verdict checkTestOutput(const std::string& basefile, std::vector<std::string>& notes);
 
   // shared whiteboard testing
   pugi::xml_document swbXML;
