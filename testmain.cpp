@@ -9,6 +9,9 @@
 #include "scribbleapp.h"
 #include "application.h"
 #include "ulib/fileutil.h"
+#include "swbserver.h"
+#include <thread>
+#include <memory>
 #include <cstdio>
 #include <cstring>
 #include <cstdlib>
@@ -32,11 +35,15 @@ static int usage(const char* argv0)
       "  --only=<n,...>       run only these tests\n"
       "  --update=<n,...|all> replace refs w/ output for these tests if they don't PASS\n"
       "  --strict             count MINOR render differences as failures\n"
-      "  --sync <server>      also run sync tests using whiteboard server <server>\n"
+      "  --sync <server>      run sync tests using whiteboard server <server>[:port]; 'local' to use a server\n"
+      "                       running in this process (on a free port)\n"
       "  --perf               run performance test instead of regular tests\n"
       "  --redraw             run only redraw tests (partial vs. full redraw of app window at several UI scales);\n"
       "                       these also run after regular tests unless --only, --update, or --sync is given\n"
       "  --no-redraw          don't run redraw tests\n"
+      "  --server             run only whiteboard server tests (HTTP API, auth, relay protocol); these also\n"
+      "                       run after regular tests unless --only, --update, --sync, or --redraw is given\n"
+      "  --no-server          don't run whiteboard server tests\n"
       "  --gl                 use GL renderer for app window (EGL surfaceless context, e.g. Mesa llvmpipe;\n"
       "                       set LIBGL_ALWAYS_SOFTWARE=1 to force llvmpipe); fails if GL is unavailable\n"
       "  --compare            compare two images (.png) or documents (.html, .svg) as tests do\n"
@@ -97,6 +104,7 @@ int main(int argc, char* argv[])
   bool strict = false;
   bool useGL = false;
   int redraw = 1;  // 0: skip, 1: after regular tests (if no --only, --update, --sync), 2: redraw tests only
+  int serverTests = 1;  // same as redraw
   // line buffered so output isn't lost (e.g. if sanitizer exits early) and stays in order w/ stderr in logs
   setvbuf(stdout, NULL, _IOLBF, 0);
   if(argc > 1 && strcmp(argv[1], "--compare") == 0)
@@ -133,6 +141,10 @@ int main(int argc, char* argv[])
       redraw = 2;
     else if(arg == "--no-redraw")
       redraw = 0;
+    else if(arg == "--server")
+      serverTests = 2;
+    else if(arg == "--no-server")
+      serverTests = 0;
     else if(arg == "--gl")
       useGL = true;
     else if(argv[ii][0] == '-')
@@ -165,6 +177,25 @@ int main(int argc, char* argv[])
     return 3;
   }
 
+  // in-process whiteboard server (same server as `Write --server`)
+  std::unique_ptr<SWBServer> localServer;
+  std::thread localServerThread;
+  if(syncServer == "local") {
+    SWBServerOptions opts;
+    opts.host = "127.0.0.1";
+    opts.port = 0;  // choose free port
+    opts.enableTest = true;
+    opts.logLevel = 1;  // warnings only
+    localServer.reset(new SWBServer(opts));
+    if(!localServer->start()) {
+      fprintf(stderr, "WriteTest: unable to start local whiteboard server\n");
+      appShutdown();
+      return 2;
+    }
+    localServerThread = std::thread([&](){ localServer->run(); });
+    syncServer = "127.0.0.1:" + std::to_string(localServer->apiPort());
+  }
+
   int res = 0;
   {
     ScribbleApp* app = ScribbleApp::app;
@@ -174,7 +205,15 @@ int main(int argc, char* argv[])
       printf("%s\n", test.resultStr.c_str());
     }
     else {
-      if(redraw != 2) {
+      bool defaultRun = onlyTests.empty() && updateTests.empty() && !updateAll && syncServer.empty();
+      if(serverTests == 2) {
+        redraw = 0;
+        ScribbleTest test(app->activeDoc(), app->bookmarkArea, app->scribbleMode, outPath);
+        test.runServerTests();
+        printf("%s\n", test.resultStr.c_str());
+        if(test.nFailed > 0) res = 1;
+      }
+      else if(redraw != 2) {
         ScribbleTest test(testPath, outPath);
         test.onlyTests = onlyTests;
         test.updateTests = updateTests;
@@ -183,7 +222,13 @@ int main(int argc, char* argv[])
         printf("%s\n", test.resultStr.c_str());
         res = test.nFailed > 0 || (strict && test.nMinor > 0) ? 1 : 0;
       }
-      if(redraw == 2 || (redraw == 1 && onlyTests.empty() && updateTests.empty() && !updateAll && syncServer.empty())) {
+      if(serverTests == 1 && redraw != 2 && defaultRun) {
+        ScribbleTest test(app->activeDoc(), app->bookmarkArea, app->scribbleMode, outPath);
+        test.runServerTests();
+        printf("%s\n", test.resultStr.c_str());
+        if(test.nFailed > 0) res = 1;
+      }
+      if(redraw == 2 || (redraw == 1 && defaultRun)) {
         ScribbleTest test(app->activeDoc(), app->bookmarkArea, app->scribbleMode, outPath);
         test.runRedrawTests();
         printf("%s\n", test.resultStr.c_str());
@@ -193,6 +238,10 @@ int main(int argc, char* argv[])
     }
   }
 
+  if(localServer) {
+    localServer->stop();
+    localServerThread.join();
+  }
   appShutdown();
   return res;
 }

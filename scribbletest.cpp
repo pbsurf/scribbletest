@@ -1,6 +1,7 @@
 #include "scribbletest.h"
 #include <fstream>
 #include <thread>
+#include <functional>
 
 #include "ugui/svggui_platform.h"
 #include "usvg/svgparser.h"
@@ -419,6 +420,21 @@ void ScribbleTest::runAll(const std::string& syncServer)
   }
   removeFile(outPath + "/report.html");
 
+  // wait for sync condition w/ timeout so that a lost message or connection fails the run instead of hanging it
+  int syncTimeouts = 0;
+  auto syncWait = [&](std::function<bool()> cond, const char* what) {
+    Timestamp t0 = mSecSinceEpoch();
+    while(!cond()) {
+      if(mSecSinceEpoch() - t0 > 20000) {
+        SCRIBBLE_LOG("sync test%d FAIL: timeout waiting for %s\n", int(currTest), what);
+        ++syncTimeouts;
+        return false;
+      }
+      ScribbleApp::processEvents();
+    }
+    return true;
+  };
+
   // create sync slave for sync test
   if(runsynctest) {
     // we are testuser1; slave is testuser2
@@ -444,6 +460,14 @@ void ScribbleTest::runAll(const std::string& syncServer)
   for(unsigned int ii = 0; true; ii++) {
     if(ii < ntests && !onlyTests.empty() && !onlyTests.count(ii))
       continue;
+    // wait for sync slave to finish previous test before resetting global state below - slave saves its document
+    //  when it sees us disconnect (in newDocument())
+    if(syncSlave) {
+      doCommand(ID_RESETZOOM);  // cancels any pending action, which can send a final update to slave
+      scribbleDoc->newDocument();
+      if(!syncWait([&](){ return !syncSlave->waitForSyncDone; }, "slave to finish previous test"))
+        break;
+    }
     std::string refbase = fstring("%s/test%d", refPath.c_str(), ii);
     std::string outbase = fstring("%s/test%d", outPath.c_str(), ii);
     docParams = DocCompareParams();
@@ -468,9 +492,6 @@ void ScribbleTest::runAll(const std::string& syncServer)
     scribbleDoc->cfg->set("savePrompt", true);
 
     if(syncSlave) {
-      // wait for slave to finish previous test
-      while(syncSlave->waitForSyncDone)
-        ScribbleApp::processEvents();
       if(ii >= totaltests) {
         syncSlave->scribbleDoc->newDocument();  // disconnect sync
         break;
@@ -480,13 +501,13 @@ void ScribbleTest::runAll(const std::string& syncServer)
       swbXML.first_child().attribute("name").set_value(fstring("testdoc%d", ii).c_str());
       scribbleDoc->openSharedDoc(scribbleConfig->String("syncServer"), swbXML.first_child(), true);
       // wait until we connect
-      while(!scribbleDoc->scribbleSync->isSyncActive())
-        ScribbleApp::processEvents();
+      if(!syncWait([&](){ return scribbleDoc->scribbleSync->isSyncActive(); }, "master to connect"))
+        break;
       // connect the slave
       syncSlave->startSyncTest(ii);
       // wait until slave connects
-      while(!syncSlave->scribbleDoc->scribbleSync->isSyncActive())
-        ScribbleApp::processEvents();
+      if(!syncWait([&](){ return syncSlave->scribbleDoc->scribbleSync->isSyncActive(); }, "slave to connect"))
+        break;
     }
     else if(ii >= nonsynctests)
       break;
@@ -554,7 +575,7 @@ void ScribbleTest::runAll(const std::string& syncServer)
   ScribbleView::unitsPerPx = unitsPerPx;
   ScribbleApp::app->loadConfig();
   if(syncSlave) {
-    nFailed = syncSlave->nFailed;
+    nFailed = syncSlave->nFailed + syncTimeouts;
     nMinor = syncSlave->nMinor;
   }
   resultStr = details + fstring("%d tests completed in %d ms: %d failed (%s), %d minor (%s)",
