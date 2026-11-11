@@ -2,9 +2,9 @@
 
 #include <string>
 
-// Redraw check - debugging aid for partial redraw with SW renderer: after each SW frame, the whole window is
+// Redraw check - debugging aid for partial redraw (SW or GL renderer): after each frame, the whole window is
 //  redrawn into a scratch buffer and compared to the framebuffer produced by the normal (partial) redraw, and
-//  pixels changed outside the frame's dirty rect are reported.  Installed via Application::swFrameHook.
+//  pixels changed outside the frame's dirty rect are reported.  Installed via Application::frameHook.
 // Used by WriteTest (redraw tests) and WriteRedrawCheck (Write w/ check enabled for all frames - see
 //  redrawcheckmain.cpp).
 
