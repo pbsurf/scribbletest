@@ -1,11 +1,16 @@
 #include "scribbletest.h"
 #include <fstream>
+#include <thread>
 
+#include "ugui/svggui_platform.h"
 #include "usvg/svgparser.h"
+#include "usvg/svgwriter.h"
 #include "application.h"
 #include "strokebuilder.h"
 #include "scribblesync.h"
-#include "scribbleapp.h"  // only for sync tests
+#include "scribbleapp.h"
+#include "scribbleinput.h"
+#include "page.h"
 
 // Ideally, these tests should be run under valgrind to help check for memory leaks
 // renaming out files to refs (Linux):  for i in {0..13}; do mv "test${i}_out.html" "test${i}_ref.html"; done;
@@ -17,13 +22,6 @@
 // standalone means not started from Qt Creator (so no qDebug output)
 
 // Known sync test issues: 9 (randomStr for bookmark id), 12 (numerical), 14 (numerical)
-bool ScribbleTest::exitAfterTest = false;
-
-
-#ifndef SCRIBBLE_TEST_PATH
-#define SCRIBBLE_TEST_PATH "."
-#endif
-
 ScribbleTest::ScribbleTest(const std::string& path)
 {
   scribbleConfig = new ScribbleConfig();
@@ -77,8 +75,9 @@ ScribbleTest::ScribbleTest(const std::string& path)
   swbXML.first_child().append_attribute("name");
 }
 
-ScribbleTest::ScribbleTest(ScribbleDoc* sd, BookmarkView* bv, ScribbleMode* sm)
+ScribbleTest::ScribbleTest(ScribbleDoc* sd, BookmarkView* bv, ScribbleMode* sm, const std::string& path)
 {
+  outPath = path;
   scribbleDoc = sd;
   scribbleArea = sd->activeArea;
   scribbleMode = sd->scribbleMode;
@@ -190,10 +189,11 @@ bool ScribbleTest::testCompareFiles(const char* f1, const char* f2, bool svgonly
 // a bunch of integration tests ... any "*_out.html" files present after test indicate a failure
 // TODO: add some tests to capture scribbleArea->imgPaint->image and compare to a ref
 
-void ScribbleTest::runAll(bool runsynctest)
+void ScribbleTest::runAll(const std::string& syncServer)
 {
+  bool runsynctest = !syncServer.empty();
   nFailed = 0;
-  int nThumbsFailed = 0;
+  nThumbsFailed = 0;
   std::vector<std::string> slFailed;
   void (ScribbleTest::*tests[])() = {
     &ScribbleTest::test0,
@@ -212,6 +212,7 @@ void ScribbleTest::runAll(bool runsynctest)
     &ScribbleTest::test13,
     &ScribbleTest::test14,
     &ScribbleTest::test15,
+    &ScribbleTest::test16,
     &ScribbleTest::synctest01
   };
   unsigned int totaltests = sizeof(tests)/sizeof(tests[0]);
@@ -220,6 +221,7 @@ void ScribbleTest::runAll(bool runsynctest)
   // create sync slave for sync test
   if(runsynctest) {
     // we are testuser1; slave is testuser2
+    scribbleConfig->set("syncServer", syncServer.c_str());
     scribbleConfig->set("syncUser", "testuser1");
     syncSlave = new ScribbleTest(outPath);
     syncSlave->scribbleConfig->set("syncUser", "testuser2");
@@ -287,6 +289,7 @@ void ScribbleTest::runAll(bool runsynctest)
       break;
 
     // array of pointers to member functions, wow...
+    currTest = ii;
     (this->*tests[ii])();
 
     // when running sync test, slave writes output
@@ -353,10 +356,6 @@ void ScribbleTest::runAll(bool runsynctest)
       int(runAllTime), nFailed, joinStr(slFailed, ", ").c_str(), nThumbsFailed);
   //if(!Application::painter->sRGB() || !Application::glRender)
   //  resultStr += "\nWARNING: ScribbleTest requires GL render and sRGB=1 to get correct thumbnails!";
-  if(exitAfterTest) {
-    SCRIBBLE_LOG(resultStr.c_str());
-    exit(nFailed * 0x100 + nThumbsFailed);
-  }
 }
 
 void ScribbleTest::performanceTest()
@@ -383,7 +382,7 @@ void ScribbleTest::performanceTest()
   // draw many strokes
   for(Dim y = 20; y < 800; y += 20) {
     for(Dim x = 20; x < 800; x += 20) {
-      ScribbleApp::processEvents();
+      platformProcessEvents(false);  // don't block waiting for events
       s3(x, y);
       scribbleArea->doRefresh();
     }
@@ -397,7 +396,7 @@ void ScribbleTest::performanceTest()
   doCommand(ID_SELALL);
   // move them around
   for(int ii = 0; ii < 10; ii++) {
-    ScribbleApp::processEvents();
+    platformProcessEvents(false);  // don't block waiting for events
     s3(400, 400);
     scribbleArea->doRefresh();
   }
@@ -411,21 +410,21 @@ void ScribbleTest::performanceTest()
   ie(400, 800, 0, pen, press);
   for(int ii = 0; ii < 2000; ii++) {
     // cleverly generate a triangle wave
-    ScribbleApp::processEvents();
+    platformProcessEvents(false);  // don't block waiting for events
     ie(400, 16*ABS((ii % 100) - 50), 0, pen);
     scribbleArea->doRefresh();
   }
-  ScribbleApp::processEvents();
+  platformProcessEvents(false);  // don't block waiting for events
   ie(0, 0, 1, pen, release);
   scribbleArea->doRefresh();
-  ScribbleApp::processEvents();
+  platformProcessEvents(false);  // don't block waiting for events
   t1 = mSecSinceEpoch();
   int panTime = t1 - t0;
   t0 = t1;
   int panFrames = scribbleArea->frameCount;
 
   // save, then load file
-  std::string outfile = std::string(SCRIBBLE_TEST_PATH) + "/perftest.html";
+  std::string outfile = outPath + "/perftest.html";
   scribbleDoc->cfg->set("singleFile", true);
   scribbleDoc->saveDocument(outfile.c_str());
   t1 = mSecSinceEpoch();
@@ -443,44 +442,6 @@ void ScribbleTest::performanceTest()
       "\nSave: %d bytes in %d ms\nLoad: %d ms", calibrationTime,
       drawFrames, drawTime, (drawFrames*1000.0)/drawTime, moveFrames, moveTime, (moveFrames*1000.0)/moveTime,
       panFrames, panTime, (panFrames*1000.0)/panTime, fileSize, saveTime, loadTime);
-}
-
-// input test; have to use touch since Windows only provides InjectTouchInput (not pen input)
-void ScribbleTest::inputTest()
-{
-  scribbleArea->scribbleInput->singleTouchMode = INPUTMODE_DRAW;
-  bool win8ok = false;
-  bool injok = true;
-#ifdef Q_OS_WIN_XXX
-  if(QSysInfo::windowsVersion() > QSysInfo::WV_WINDOWS7) {
-    QPoint origin = scribbleArea->mapToGlobal(QPoint(0, 0));
-    int x = origin.x();
-    int y = origin.y();
-    injok = ScribbleInput::injectTouch(x + 150, y + 150, 0.25, press) && injok;
-    injok = ScribbleInput::injectTouch(x + 200, y + 200, 0.75) && injok;
-    injok = ScribbleInput::injectTouch(x + 250, y + 150, 0.5) && injok;
-    injok = ScribbleInput::injectTouch(x + 250, y + 150, 0, release) && injok;
-    win8ok = true;
-  }
-#endif
-  if(!win8ok) {
-    ie(150, 150, 0.25, INPUTSOURCE_TOUCH, press);
-    ie(200, 200, 0.75, INPUTSOURCE_TOUCH);
-    ie(250, 150, 0.5, INPUTSOURCE_TOUCH);
-    ie(250, 150, 0, INPUTSOURCE_TOUCH, release);
-  }
-  ie(150, 150, 0.25, INPUTSOURCE_TOUCH, press);
-  ie(200, 100, 0.75, INPUTSOURCE_TOUCH);
-  ie(250, 150, 0.5, INPUTSOURCE_TOUCH);
-  ie(250, 150, 0, INPUTSOURCE_TOUCH, release);
-  scribbleArea->scribbleInput->singleTouchMode = INPUTMODE_NONE;
-  // this attempted stroke should NOT appear
-  ie(150, 200, 0.25, INPUTSOURCE_TOUCH, press);
-  ie(200, 150, 0.75, INPUTSOURCE_TOUCH);
-  ie(250, 200, 0.5, INPUTSOURCE_TOUCH);
-  ie(250, 200, 0, INPUTSOURCE_TOUCH, release);
-
-  resultStr = fstring("A diamond should have been drawn. Windows 8 touch injection OK: %s", (win8ok && injok) ? "true" : "false");
 }
 
 // long stroke
@@ -1430,6 +1391,32 @@ void ScribbleTest::test15()
   doCommand(ID_PASTE);
 }
 
+// touch input draws with singleTouchMode = INPUTMODE_DRAW, but not with INPUTMODE_NONE (formerly inputTest())
+void ScribbleTest::test16()
+{
+  ScribbleInput* input = scribbleArea->scribbleInput.get();
+  inputmode_t prevmode = input->singleTouchMode;
+  input->singleTouchMode = INPUTMODE_DRAW;
+  // these two strokes should form a diamond
+  ie(150, 150, 0.25, INPUTSOURCE_TOUCH, press);
+  ie(200, 200, 0.75, INPUTSOURCE_TOUCH);
+  ie(250, 150, 0.5, INPUTSOURCE_TOUCH);
+  ie(250, 150, 0, INPUTSOURCE_TOUCH, release);
+
+  ie(150, 150, 0.25, INPUTSOURCE_TOUCH, press);
+  ie(200, 100, 0.75, INPUTSOURCE_TOUCH);
+  ie(250, 150, 0.5, INPUTSOURCE_TOUCH);
+  ie(250, 150, 0, INPUTSOURCE_TOUCH, release);
+
+  input->singleTouchMode = INPUTMODE_NONE;
+  // this attempted stroke should NOT appear
+  ie(150, 200, 0.25, INPUTSOURCE_TOUCH, press);
+  ie(200, 150, 0.75, INPUTSOURCE_TOUCH);
+  ie(250, 200, 0.5, INPUTSOURCE_TOUCH);
+  ie(250, 200, 0, INPUTSOURCE_TOUCH, release);
+  input->singleTouchMode = prevmode;
+}
+
 // back and forth test for whiteboard
 
 void ScribbleTest::waitForSync()
@@ -1479,8 +1466,8 @@ void ScribbleTest::synctest01slave2()
   // restore the deleted stroke
   undo();
 
-  // disconnect and reconnect to whiteboard
-  startSyncTest(16);
+  // disconnect and reconnect to whiteboard (master's currTest is the index of this test)
+  startSyncTest(syncTestNum);
   // wait for connection
   while(!scribbleDoc->scribbleSync->isSyncActive())
     ScribbleApp::processEvents();

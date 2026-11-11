@@ -9,18 +9,18 @@ class ScribbleTest
 friend class ScribbleApp;
 public:
   ScribbleTest(const std::string &path);
-  ScribbleTest(ScribbleDoc* sd, BookmarkView* bv, ScribbleMode* sm);
+  ScribbleTest(ScribbleDoc* sd, BookmarkView* bv, ScribbleMode* sm, const std::string& path);
   ~ScribbleTest();
 
-  void runAll(bool runsynctest = false);
+  // run sync tests (and sync version of all other tests) if syncServer is not empty
+  void runAll(const std::string& syncServer = "");
   void performanceTest();
-  void inputTest();
   void syncSlaveMsg(std::string msg, int level);
 
-  // result string to be read by caller
+  // results to be read by caller
   std::string resultStr;
-
-  static bool exitAfterTest;
+  int nFailed = 0;
+  int nThumbsFailed = 0;
 
 private:
   ScribbleConfig* scribbleConfig;
@@ -32,7 +32,7 @@ private:
   Painter* screenPaint;
   Rect screenRect;
   std::string outPath;
-  int nFailed;
+  int currTest = 0;
 
   // shared whiteboard testing
   pugi::xml_document swbXML;
@@ -77,6 +77,7 @@ private:
   void test13();
   void test14();
   void test15();
+  void test16();
   void synctest01();
   void synctest01slave1();
   void synctest01slave2();
