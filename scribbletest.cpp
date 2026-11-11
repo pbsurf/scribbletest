@@ -13,7 +13,7 @@
 #include "page.h"
 
 // Ideally, these tests should be run under valgrind to help check for memory leaks
-// renaming out files to refs (Linux):  for i in {0..13}; do mv "test${i}_out.html" "test${i}_ref.html"; done;
+// to accept new output as refs, use `WriteTest --update=<test numbers>` (see testmain.cpp)
 
 // runAll run times (tests 0 - 10):
 //  Debian-NDK VM (Qt 4.7 gcc): 440 ms (debug build), 12600 ms (valgrind, 2nd run)
@@ -22,7 +22,7 @@
 // standalone means not started from Qt Creator (so no qDebug output)
 
 // Known sync test issues: 9 (randomStr for bookmark id), 12 (numerical), 14 (numerical)
-ScribbleTest::ScribbleTest(const std::string& path)
+ScribbleTest::ScribbleTest(const std::string& refpath, const std::string& outpath)
 {
   scribbleConfig = new ScribbleConfig();
   scribbleConfig->set("singleFile", true);
@@ -59,7 +59,8 @@ ScribbleTest::ScribbleTest(const std::string& path)
   //bookmarkArea->setScribbleDoc(scribbleDoc);
   syncSlave = NULL;
   waitForSyncDone = false;
-  outPath = path;
+  refPath = refpath;
+  outPath = outpath;
   // setup ScribbleArea
   scribbleDoc->newDocument();
   screenRect = Rect::ltwh(0,0,600,800);
@@ -75,9 +76,9 @@ ScribbleTest::ScribbleTest(const std::string& path)
   swbXML.first_child().append_attribute("name");
 }
 
-ScribbleTest::ScribbleTest(ScribbleDoc* sd, BookmarkView* bv, ScribbleMode* sm, const std::string& path)
+ScribbleTest::ScribbleTest(ScribbleDoc* sd, BookmarkView* bv, ScribbleMode* sm, const std::string& outpath)
 {
-  outPath = path;
+  outPath = outpath;
   scribbleDoc = sd;
   scribbleArea = sd->activeArea;
   scribbleMode = sd->scribbleMode;
@@ -154,11 +155,11 @@ void ScribbleTest::syncSlaveMsg(std::string msg, int level)
   checkStrokeMap(scribbleDoc, "slave (testuser2)");
   distributeTransform(scribbleDoc->document);
   // write output file
-  std::string basefile = fstring("%s/test%d", outPath.c_str(), syncTestNum);
-  std::string outfile = basefile + "_out.html";
+  std::string outfile = fstring("%s/test%d_out.html", outPath.c_str(), syncTestNum);
+  std::string reffile = fstring("%s/test%d_ref.html", refPath.c_str(), syncTestNum);
   scribbleDoc->saveDocument(outfile.c_str());
   // compare output to reference; tests of one-file-per-page must handle the svg files themselves
-  if(testCompareFiles(outfile.c_str(), (basefile + "_ref.html").c_str(), true))
+  if(testCompareFiles(outfile.c_str(), reffile.c_str(), true))
     scribbleDoc->document->deleteFiles();  //remove(outfile.c_str());
   else
     ++nFailed;
@@ -197,65 +198,195 @@ static std::string stripThumbnail(std::string html)
   return html.erase(start, end + 2 - start);
 }
 
+// unified-diff-like excerpt of first differing region of two texts (for report)
+static std::string diffExcerpt(const std::string& ref, const std::string& out)
+{
+  auto rl = splitStr<std::vector>(ref.c_str(), '\n');
+  auto ol = splitStr<std::vector>(out.c_str(), '\n');
+  size_t ii = 0;
+  while(ii < rl.size() && ii < ol.size() && rl[ii] == ol[ii]) ++ii;
+  size_t jr = rl.size(), jo = ol.size();
+  while(jr > ii && jo > ii && rl[jr-1] == ol[jo-1]) { --jr; --jo; }
+  // if first differing lines differ only far from the start, show lines starting shortly before the difference
+  size_t col = 0;
+  if(ii < rl.size() && ii < ol.size()) {
+    while(col < rl[ii].size() && col < ol[ii].size() && rl[ii][col] == ol[ii][col]) ++col;
+  }
+  size_t start = col > 100 ? col - 60 : 0;
+  auto clip = [start](const std::string& line) {
+    std::string res = start > 0 ? "..." + (start < line.size() ? line.substr(start) : "") : line;
+    return res.size() > 240 ? res.substr(0, 240) + " ..." : res;
+  };
+  const size_t maxlines = 12;
+  std::string res = fstring("@@ line %d @@\n", int(ii+1));
+  for(size_t k = ii > 2 ? ii-2 : 0; k < ii; ++k) res += "  " + clip(rl[k]) + "\n";
+  for(size_t k = ii; k < jr && k < ii + maxlines; ++k) res += "- " + clip(rl[k]) + "\n";
+  if(jr > ii + maxlines) res += fstring("- ... (%d more lines)\n", int(jr - ii - maxlines));
+  for(size_t k = ii; k < jo && k < ii + maxlines; ++k) res += "+ " + clip(ol[k]) + "\n";
+  if(jo > ii + maxlines) res += fstring("+ ... (%d more lines)\n", int(jo - ii - maxlines));
+  return res;
+}
+
+static std::string encodePNGStr(const Image& img)
+{
+  auto enc = img.encodePNG();
+  return std::string((const char*)enc.data(), enc.size());
+}
+
 // compare test output to refs: document content must match exactly; thumbnail and full resolution render of
-//  screen are compared w/ tolerance (see imagecompare.h).  Diagnostic output files are written for differences.
-ImageCompareResult::Verdict ScribbleTest::checkTestOutput(const std::string& basefile, std::vector<std::string>& notes)
+//  screen are compared w/ tolerance (see imagecompare.h).  For differences, diagnostic files are written to
+//  outPath and images are saved in rep for the HTML report.
+void ScribbleTest::checkTestOutput(const std::string& refbase, const std::string& outbase, TestReport& rep)
 {
   typedef ImageCompareResult R;
-  R::Verdict verdict = R::PASS;
-  std::string outfile = basefile + "_out.html";
-  std::string reffile = basefile + "_ref.html";
+  std::string outfile = outbase + "_out.html";
+  std::string reffile = refbase + "_ref.html";
   std::string outhtml = readFile(outfile.c_str());
   std::string refhtml = readFile(reffile.c_str());
   if(refhtml.empty()) {
-    verdict = R::FAIL;
-    notes.push_back("no ref document");
+    rep.verdict = R::FAIL;
+    rep.notes.push_back("no ref document");
   }
-  else if(stripThumbnail(outhtml) != stripThumbnail(refhtml)) {
-    verdict = R::FAIL;
-    notes.push_back("document content differs");
-  }
+  else {
+    std::string refcontent = stripThumbnail(refhtml);
+    std::string outcontent = stripThumbnail(outhtml);
+    if(outcontent != refcontent) {
+      rep.verdict = R::FAIL;
+      rep.notes.push_back("document content differs");
+      rep.contentDiff = diffExcerpt(refcontent, outcontent);
+    }
 
-  if(!refhtml.empty()) {
     Image refthumb = ScribbleDoc::extractThumbnail(reffile.c_str());
     Image outthumb = ScribbleDoc::extractThumbnail(outfile.c_str());
     R thumb = compareImages(refthumb, outthumb, thumbParams);
     if(thumb.verdict != R::PASS) {
-      verdict = std::max(verdict, thumb.verdict);
-      notes.push_back("thumbnail " + std::string(R::verdictStr(thumb.verdict)) + ": " + thumb.summary());
-      if(!refthumb.isNull()) saveImagePNG(refthumb, basefile + "_thumb_ref.png");
-      if(!outthumb.isNull()) saveImagePNG(outthumb, basefile + "_thumb_out.png");
-      if(!thumb.diffImg.isNull()) saveImagePNG(thumb.diffImg, basefile + "_thumb_diff.png");
+      rep.verdict = std::max(rep.verdict, thumb.verdict);
+      rep.notes.push_back("thumbnail " + std::string(R::verdictStr(thumb.verdict)) + ": " + thumb.summary());
+      if(!refthumb.isNull()) {
+        saveImagePNG(refthumb, outbase + "_thumb_ref.png");
+        rep.thumbImgs.push_back({"ref", encodePNGStr(refthumb)});
+      }
+      if(!outthumb.isNull()) {
+        saveImagePNG(outthumb, outbase + "_thumb_out.png");
+        rep.thumbImgs.push_back({"out", encodePNGStr(outthumb)});
+      }
+      if(!thumb.diffImg.isNull()) {
+        saveImagePNG(thumb.diffImg, outbase + "_thumb_diff.png");
+        rep.thumbImgs.push_back({"diff", encodePNGStr(thumb.diffImg)});
+      }
     }
   }
 
-  std::string renderref = basefile + "_render_ref.png";
+  std::string renderref = refbase + "_render_ref.png";
   R render = compareImages(loadImageFile(renderref), *screenImg, renderParams);
   if(render.verdict != R::PASS) {
-    verdict = std::max(verdict, render.verdict);
-    bool noref = getFileSize(renderref) <= 0;
-    notes.push_back(noref ? "no render ref" : "render " + std::string(R::verdictStr(render.verdict)) + ": " + render.summary());
-    saveImagePNG(*screenImg, basefile + "_render_out.png");
-    if(!render.diffImg.isNull()) saveImagePNG(render.diffImg, basefile + "_render_diff.png");
+    rep.verdict = std::max(rep.verdict, render.verdict);
+    std::string refpng = readFile(renderref.c_str());
+    rep.notes.push_back(refpng.empty() ? "no render ref"
+        : "render " + std::string(R::verdictStr(render.verdict)) + ": " + render.summary());
+    if(!refpng.empty())
+      rep.renderImgs.push_back({"ref", refpng});
+    saveImagePNG(*screenImg, outbase + "_render_out.png");
+    rep.renderImgs.push_back({"out", encodePNGStr(*screenImg)});
+    if(!render.diffImg.isNull()) {
+      saveImagePNG(render.diffImg, outbase + "_render_diff.png");
+      rep.renderImgs.push_back({"diff", encodePNGStr(render.diffImg)});
+    }
   }
 
   // keep output document only if it differs from ref (for inspection or to update ref)
   if(outhtml == refhtml)
     scribbleDoc->document->deleteFiles();
-  return verdict;
+}
+
+static std::string htmlEscape(const std::string& s)
+{
+  std::string res;
+  for(char c : s) {
+    if(c == '&') res += "&amp;";
+    else if(c == '<') res += "&lt;";
+    else if(c == '>') res += "&gt;";
+    else res += c;
+  }
+  return res;
+}
+
+// self-contained HTML report (images embedded) of tests that did not PASS
+void ScribbleTest::writeReport(const std::vector<TestReport>& reports, int ntests, int runms)
+{
+  typedef ImageCompareResult R;
+  std::string body;
+  std::vector<std::string> passed;
+  // FAIL first, then MINOR, then updated
+  auto rank = [](const TestReport& r) { return r.updated ? 0 : r.verdict == R::FAIL ? 2 : 1; };
+  std::vector<const TestReport*> sorted;
+  for(const TestReport& r : reports) {
+    if(r.verdict == R::PASS) passed.push_back(std::to_string(r.test));
+    else sorted.push_back(&r);
+  }
+  std::stable_sort(sorted.begin(), sorted.end(),
+      [&](const TestReport* a, const TestReport* b) { return rank(*a) > rank(*b); });
+
+  auto imgRow = [](const char* title, const std::vector<TestReport::Img>& imgs) {
+    if(imgs.empty()) return std::string();
+    std::string row = fstring("<h3>%s</h3><div class='row' onclick='this.classList.toggle(\"full\")'>", title);
+    for(const TestReport::Img& img : imgs)
+      row += "<figure><img src='data:image/png;base64," + base64_encode((const unsigned char*)img.png.data(),
+          img.png.size()) + "'><figcaption>" + img.label + "</figcaption></figure>";
+    return row + "</div>";
+  };
+
+  for(const TestReport* r : sorted) {
+    const char* v = R::verdictStr(r->verdict);
+    std::string cls = r->updated ? "updated" : (r->verdict == R::FAIL ? "fail" : "minor");
+    body += fstring("<section class='%s'><h2>test%d: %s</h2><ul>", cls.c_str(), r->test,
+        r->updated ? fstring("UPDATED (was %s)", v).c_str() : v);
+    for(const std::string& note : r->notes)
+      body += "<li>" + htmlEscape(note) + "</li>";
+    body += "</ul>";
+    if(!r->contentDiff.empty())
+      body += "<h3>document</h3><pre>" + htmlEscape(r->contentDiff) + "</pre>";
+    body += imgRow("render", r->renderImgs);
+    body += imgRow("thumbnail", r->thumbImgs);
+    body += "</section>\n";
+  }
+
+  std::string html = "<!DOCTYPE html>\n<html><head><meta charset='utf-8'><title>WriteTest report</title><style>\n"
+      "body { font-family: sans-serif; margin: 16px; background: #fff; color: #222; }\n"
+      "section { border-left: 6px solid #888; padding: 4px 12px; margin: 16px 0; }\n"
+      "section.fail { border-color: #d22; } section.minor { border-color: #e90; } section.updated { border-color: #27c; }\n"
+      "h2 { margin: 4px 0; font-size: 1.2em; } h3 { margin: 8px 0 4px; font-size: 1em; color: #555; }\n"
+      ".row { display: flex; gap: 12px; cursor: zoom-in; } .row figure { flex: 1 1 0; min-width: 0; margin: 0; }\n"
+      ".row img { width: 100%; border: 1px solid #ccc; display: block; image-rendering: pixelated; }\n"
+      ".row.full { flex-direction: column; cursor: zoom-out; } .row.full img { width: auto; max-width: none; }\n"
+      "figcaption { text-align: center; }\n"
+      "pre { background: #f4f4f4; padding: 8px; overflow-x: auto; font-size: 12px; }\n"
+      "</style></head><body>\n";
+  html += fstring("<h1>WriteTest: %d failed, %d minor, %d updated, %d passed of %d (%d ms)</h1>\n",
+      nFailed, nMinor, nUpdated, int(passed.size()), ntests, runms);
+  html += "<p>Diff images: faded ref, orange = minor difference, red = significant difference."
+      " Click images to toggle full size.</p>\n";
+  html += body;
+  html += "<p>Passed: " + (passed.empty() ? std::string("none") : joinStr(passed, ", ")) + "</p>\n</body></html>\n";
+
+  reportFile = outPath + "/report.html";
+  std::ofstream strm(reportFile.c_str(), std::ios::binary);
+  strm << html;
 }
 
 // a bunch of integration tests: each test is run on a fresh document (or testN_in.html if present), then output
-//  is compared to testN_ref.html and testN_render_ref.png - see checkTestOutput().  Output files (*_out.*, *_diff.*)
-//  present after the run are for tests that did not PASS.
+//  is compared to testN_ref.html and testN_render_ref.png - see checkTestOutput().  Output files are written to
+//  outPath only for tests that did not PASS, along with report.html.
 
 void ScribbleTest::runAll(const std::string& syncServer)
 {
   bool runsynctest = !syncServer.empty();
   nFailed = 0;
   nMinor = 0;
-  std::vector<std::string> slFailed, slMinor;
+  nUpdated = 0;
+  std::vector<std::string> slFailed, slMinor, slUpdated;
   std::string details;
+  std::vector<TestReport> reports;
   void (ScribbleTest::*tests[])() = {
     &ScribbleTest::test0,
     &ScribbleTest::test1,
@@ -278,13 +409,30 @@ void ScribbleTest::runAll(const std::string& syncServer)
   };
   unsigned int totaltests = sizeof(tests)/sizeof(tests[0]);
   unsigned int nonsynctests = totaltests - 1;  // last test is for sync only
+  unsigned int ntests = runsynctest ? totaltests : nonsynctests;
+  std::string badtests;
+  for(int t : onlyTests) { if(t < 0 || t >= int(ntests)) badtests += fstring(" %d", t); }
+  for(int t : updateTests) { if(t < 0 || t >= int(ntests)) badtests += fstring(" %d", t); }
+  if(!badtests.empty()) {
+    resultStr = fstring("Invalid test number(s):%s (valid: 0 - %d)", badtests.c_str(), ntests - 1);
+    nFailed = 1;
+    return;
+  }
+
+  // remove output from previous run
+  for(unsigned int ii = 0; ii < totaltests; ++ii) {
+    for(const char* suffix : {"_out.html", "_render_out.png", "_render_diff.png",
+        "_thumb_ref.png", "_thumb_out.png", "_thumb_diff.png"})
+      removeFile(fstring("%s/test%d%s", outPath.c_str(), ii, suffix));
+  }
+  removeFile(outPath + "/report.html");
 
   // create sync slave for sync test
   if(runsynctest) {
     // we are testuser1; slave is testuser2
     scribbleConfig->set("syncServer", syncServer.c_str());
     scribbleConfig->set("syncUser", "testuser1");
-    syncSlave = new ScribbleTest(outPath);
+    syncSlave = new ScribbleTest(refPath, outPath);
     syncSlave->scribbleConfig->set("syncUser", "testuser2");
     syncSlave->scribbleConfig->set("syncServer", scribbleConfig->String("syncServer"));
     syncSlave->nFailed = 0;
@@ -302,22 +450,18 @@ void ScribbleTest::runAll(const std::string& syncServer)
   srandpp(1);  // randomStr now used for bookmark ids
   Timestamp runAllTime = mSecSinceEpoch();
   for(unsigned int ii = 0; true; ii++) {
-    std::string basefile = fstring("%s/test%d", outPath.c_str(), ii);
-    // remove output from previous run
-    for(const char* suffix : {"_out.html", "_render_out.png", "_render_diff.png",
-        "_thumb_ref.png", "_thumb_out.png", "_thumb_diff.png"})
-      removeFile(basefile + suffix);
+    if(ii < ntests && !onlyTests.empty() && !onlyTests.count(ii))
+      continue;
+    std::string refbase = fstring("%s/test%d", refPath.c_str(), ii);
+    std::string outbase = fstring("%s/test%d", outPath.c_str(), ii);
     renderParams = ImageCompareParams();
+    // reset global state that tests may change (e.g. test15 switches to relative path data), so that each test's
+    //  result doesn't depend on which tests ran before it (--only)
+    SvgWriter::DEFAULT_PATH_DATA_REL = false;
     doCommand(ID_RESETZOOM);
-    // enable this to update ref files (saving as *_new.html)
-#ifdef REFRESH_REFS
-    if(scribbleDoc->openDocument((basefile + "_ref.html").c_str()) == Document::LOAD_OK)
-      scribbleDoc->saveDocument((basefile + "_new.html").c_str());
-#endif
-
     scribbleDoc->newDocument();
     // attempt to open input file; fails quietly if not present
-    Document::loadresult_t res = scribbleDoc->openDocument((basefile + "_in.html").c_str());
+    Document::loadresult_t res = scribbleDoc->openDocument((refbase + "_in.html").c_str());
     if(res == Document::LOAD_NONFATAL) {
       scribbleDoc->checkAndClearErrors();
       scribbleDoc->cfg->set("test_loadErrors", true);
@@ -377,13 +521,26 @@ void ScribbleTest::runAll(const std::string& syncServer)
       dirtycount += scribbleDoc->document->pages[pp]->dirtyCount;
     scribbleDoc->cfg->set("test_dirtyCount", dirtycount);
     // write output file
-    std::string outfile = basefile + "_out.html";
+    std::string outfile = outbase + "_out.html";
     if(!scribbleDoc->saveDocument(outfile.c_str()))
       SCRIBBLE_LOG("ScribbleTest: error saving %s", outfile.c_str());
     // compare output to reference; tests of one-file-per-page must handle the svg files themselves
-    std::vector<std::string> notes;
-    ImageCompareResult::Verdict verdict = checkTestOutput(basefile, notes);
-    if(verdict == ImageCompareResult::FAIL) {
+    reports.emplace_back();
+    TestReport& rep = reports.back();
+    rep.test = ii;
+    checkTestOutput(refbase, outbase, rep);
+    ImageCompareResult::Verdict verdict = rep.verdict;
+    if(verdict != ImageCompareResult::PASS && (updateAll || updateTests.count(ii))) {
+      // output document is only kept if it differs from ref
+      if(getFileSize(outfile) > 0 && !copyFile(outfile, refbase + "_ref.html"))
+        rep.notes.push_back("error updating ref document");
+      if(!saveImagePNG(*screenImg, refbase + "_render_ref.png"))
+        rep.notes.push_back("error updating render ref");
+      rep.updated = true;
+      slUpdated.push_back(std::to_string(ii));
+      nUpdated++;
+    }
+    else if(verdict == ImageCompareResult::FAIL) {
       slFailed.push_back(std::to_string(ii));
       nFailed++;
     }
@@ -391,8 +548,10 @@ void ScribbleTest::runAll(const std::string& syncServer)
       slMinor.push_back(std::to_string(ii));
       nMinor++;
     }
-    if(verdict != ImageCompareResult::PASS)
-      details += fstring("test%d %s - %s\n", ii, ImageCompareResult::verdictStr(verdict), joinStr(notes, "; ").c_str());
+    if(verdict != ImageCompareResult::PASS) {
+      details += fstring("test%d %s%s - %s\n", ii, rep.updated ? "UPDATED, was " : "",
+          ImageCompareResult::verdictStr(verdict), joinStr(rep.notes, "; ").c_str());
+    }
   }
   runAllTime = mSecSinceEpoch() - runAllTime;
   // restore global config
@@ -403,8 +562,17 @@ void ScribbleTest::runAll(const std::string& syncServer)
   ScribbleApp::app->loadConfig();
   if(syncSlave)
     nFailed = syncSlave->nFailed;
-  resultStr = details + fstring("Tests completed in %d ms: %d failed (%s), %d minor (%s)",
-      int(runAllTime), nFailed, joinStr(slFailed, ", ").c_str(), nMinor, joinStr(slMinor, ", ").c_str());
+  resultStr = details + fstring("%d tests completed in %d ms: %d failed (%s), %d minor (%s)",
+      int(reports.size()), int(runAllTime), nFailed, joinStr(slFailed, ", ").c_str(),
+      nMinor, joinStr(slMinor, ", ").c_str());
+  if(nUpdated > 0)
+    resultStr += fstring(", refs updated for %d (%s)", nUpdated, joinStr(slUpdated, ", ").c_str());
+  if(!syncSlave) {
+    writeReport(reports, int(reports.size()), int(runAllTime));
+    if(int(reports.size()) > int(std::count_if(reports.begin(), reports.end(),
+        [](const TestReport& r){ return r.verdict == ImageCompareResult::PASS; })))
+      resultStr += "\nReport: " + reportFile;
+  }
 }
 
 void ScribbleTest::performanceTest()

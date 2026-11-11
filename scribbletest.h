@@ -4,13 +4,15 @@
 #include "scribbledoc.h"
 #include "bookmarkview.h"
 #include "imagecompare.h"
+#include <set>
 
 class ScribbleTest
 {
 friend class ScribbleApp;
 public:
-  ScribbleTest(const std::string &path);
-  ScribbleTest(ScribbleDoc* sd, BookmarkView* bv, ScribbleMode* sm, const std::string& path);
+  // refpath: folder w/ test inputs and refs; outpath: folder for output files (must exist)
+  ScribbleTest(const std::string& refpath, const std::string& outpath);
+  ScribbleTest(ScribbleDoc* sd, BookmarkView* bv, ScribbleMode* sm, const std::string& outpath);
   ~ScribbleTest();
 
   // run sync tests (and sync version of all other tests) if syncServer is not empty
@@ -18,10 +20,18 @@ public:
   void performanceTest();
   void syncSlaveMsg(std::string msg, int level);
 
+  // set by caller before runAll(): tests to run (all if empty); tests for which refs should be updated from
+  //  output if they don't PASS (or all tests if updateAll)
+  std::set<int> onlyTests;
+  std::set<int> updateTests;
+  bool updateAll = false;
+
   // results to be read by caller
   std::string resultStr;
+  std::string reportFile;  // HTML report written by runAll()
   int nFailed = 0;
   int nMinor = 0;  // tests w/ MINOR render differences (not counted as failures unless --strict)
+  int nUpdated = 0;  // tests w/ refs updated (not counted as failed or minor)
 
 private:
   ScribbleConfig* scribbleConfig;
@@ -32,13 +42,26 @@ private:
   Image* screenImg;
   Painter* screenPaint;
   Rect screenRect;
+  std::string refPath;
   std::string outPath;
   int currTest = 0;
   // full resolution render comparison; reset before each test, so a test can loosen it if needed (e.g. for images)
   ImageCompareParams renderParams;
   // thumbnails are only checked loosely, as a test of thumbnail generation
   ImageCompareParams thumbParams = {64, 0};
-  ImageCompareResult::Verdict checkTestOutput(const std::string& basefile, std::vector<std::string>& notes);
+
+  struct TestReport {
+    struct Img { std::string label; std::string png; };  // png is encoded PNG data
+    int test;
+    ImageCompareResult::Verdict verdict = ImageCompareResult::PASS;
+    bool updated = false;
+    std::vector<std::string> notes;
+    std::string contentDiff;
+    std::vector<Img> renderImgs;
+    std::vector<Img> thumbImgs;
+  };
+  void checkTestOutput(const std::string& refbase, const std::string& outbase, TestReport& rep);
+  void writeReport(const std::vector<TestReport>& reports, int ntests, int runms);
 
   // shared whiteboard testing
   pugi::xml_document swbXML;
