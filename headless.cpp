@@ -2,10 +2,18 @@
 //  native events; the SW framebuffer is just memory.  Events pushed by the app (incl. from other threads, e.g.
 //  SvgGui timer thread, sync network thread) are queued and dispatched by platformProcessEvents() as usual.
 // Unlike the real platform layers, this does not provide main() - see testmain.cpp
+// GL (optional, see headlessSetGL()): surfaceless EGL context (Mesa), w/ an offscreen framebuffer object bound in
+//  place of the window's default framebuffer, which doesn't exist; app's GL calls go through libglvnd as usual
 
+#include "headless.h"
 #include "ugui/svggui_platform.h"
 #include "ulib/image.h"
 #include "ulib/platformutil.h"
+#include <EGL/egl.h>
+#include <EGL/eglext.h>
+#define GL_GLEXT_PROTOTYPES
+#include <GL/gl.h>
+#include <GL/glext.h>
 #include <mutex>
 #include <condition_variable>
 #include <deque>
@@ -78,10 +86,113 @@ bool platformProcessEvents(bool wait)
   return true;
 }
 
+// GL
+static bool wantGL = false;
+static EGLDisplay eglDpy = EGL_NO_DISPLAY;
+static EGLContext eglCtx = EGL_NO_CONTEXT;
+static GLuint winFBO = 0, winRB = 0;
+static std::string glRenderer;
+
+void headlessSetGL(bool enable) { wantGL = enable; }
+bool headlessUsingGL() { return eglCtx != EGL_NO_CONTEXT; }
+const char* headlessGLRenderer() { return glRenderer.c_str(); }
+
+static void shutdownGL()
+{
+  if(eglCtx != EGL_NO_CONTEXT) {
+    if(winFBO) { glDeleteFramebuffers(1, &winFBO); winFBO = 0; }
+    if(winRB) { glDeleteRenderbuffers(1, &winRB); winRB = 0; }
+    eglMakeCurrent(eglDpy, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
+    eglDestroyContext(eglDpy, eglCtx);
+    eglCtx = EGL_NO_CONTEXT;
+  }
+  if(eglDpy != EGL_NO_DISPLAY) {
+    eglTerminate(eglDpy);
+    eglDpy = EGL_NO_DISPLAY;
+  }
+}
+
+static bool initGL()
+{
+  // surfaceless platform (EGL_MESA_platform_surfaceless) needs no window system or GPU device
+  eglDpy = eglGetPlatformDisplay(EGL_PLATFORM_SURFACELESS_MESA, EGL_DEFAULT_DISPLAY, NULL);
+  if(eglDpy == EGL_NO_DISPLAY || !eglInitialize(eglDpy, NULL, NULL)) {
+    PLATFORM_LOG("WriteTest: unable to initialize EGL surfaceless display\n");
+    eglDpy = EGL_NO_DISPLAY;
+    return false;
+  }
+  if(!eglBindAPI(EGL_OPENGL_API)) {
+    PLATFORM_LOG("WriteTest: eglBindAPI(EGL_OPENGL_API) failed\n");
+    shutdownGL();
+    return false;
+  }
+  // same as linuxmain.cpp: GL 3.3 (core profile is default)
+  const EGLint ctxattribs[] = { EGL_CONTEXT_MAJOR_VERSION, 3, EGL_CONTEXT_MINOR_VERSION, 3, EGL_NONE };
+  // EGL_KHR_no_config_context and EGL_KHR_surfaceless_context
+  eglCtx = eglCreateContext(eglDpy, EGL_NO_CONFIG_KHR, EGL_NO_CONTEXT, ctxattribs);
+  if(eglCtx == EGL_NO_CONTEXT || !eglMakeCurrent(eglDpy, EGL_NO_SURFACE, EGL_NO_SURFACE, eglCtx)) {
+    PLATFORM_LOG("WriteTest: unable to create EGL context (error 0x%x)\n", eglGetError());
+    if(eglCtx != EGL_NO_CONTEXT) { eglDestroyContext(eglDpy, eglCtx); eglCtx = EGL_NO_CONTEXT; }
+    shutdownGL();
+    return false;
+  }
+  // no default framebuffer, so create one to stand in for the window; app (nvglu) binds its own FBO for drawing,
+  //  then blits to and rebinds previously bound FBO, i.e. this one
+  glGenRenderbuffers(1, &winRB);
+  glBindRenderbuffer(GL_RENDERBUFFER, winRB);
+  glRenderbufferStorage(GL_RENDERBUFFER, GL_RGBA8, headlessWin.width, headlessWin.height);
+  glGenFramebuffers(1, &winFBO);
+  glBindFramebuffer(GL_FRAMEBUFFER, winFBO);
+  glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_RENDERBUFFER, winRB);
+  if(glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
+    PLATFORM_LOG("WriteTest: window framebuffer incomplete\n");
+    shutdownGL();
+    return false;
+  }
+  glViewport(0, 0, headlessWin.width, headlessWin.height);
+  glClearColor(0, 0, 0, 1);
+  glClear(GL_COLOR_BUFFER_BIT);
+  const char* renderer = (const char*)glGetString(GL_RENDERER);
+  const char* version = (const char*)glGetString(GL_VERSION);
+  glRenderer = std::string(renderer ? renderer : "?") + " (" + (version ? version : "?") + ")";
+  return true;
+}
+
 PlatformWindow* platformInit(PlatformConfig& cfg)
 {
-  cfg.flags &= ~(PlatformConfig::USE_GL | PlatformConfig::SRGB);  // SW rendering only
+  if(!(wantGL && (cfg.flags & PlatformConfig::USE_GL) && initGL()))
+    cfg.flags &= ~PlatformConfig::USE_GL;  // SW rendering
+  // sRGB window framebuffer is only relevant for GLES; SW renders to a plain RGBA framebuffer
+  if(!headlessUsingGL())
+    cfg.flags &= ~PlatformConfig::SRGB;
   return &headlessWin;
+}
+
+Image headlessReadWindow()
+{
+  int w = headlessWin.width, h = headlessWin.height;
+  Image img(w, h);
+  uint32_t* out = (uint32_t*)img.pixels();
+  if(headlessUsingGL()) {
+    std::vector<uint32_t> px(size_t(w)*h);
+    GLint prev = 0;
+    glGetIntegerv(GL_READ_FRAMEBUFFER_BINDING, &prev);
+    glBindFramebuffer(GL_READ_FRAMEBUFFER, winFBO);
+    glPixelStorei(GL_PACK_ALIGNMENT, 4);
+    glReadPixels(0, 0, w, h, GL_RGBA, GL_UNSIGNED_BYTE, px.data());
+    glBindFramebuffer(GL_READ_FRAMEBUFFER, prev);
+    for(int y = 0; y < h; ++y)  // GL rows are bottom to top
+      memcpy(out + size_t(y)*w, px.data() + size_t(h - 1 - y)*w, w*4);
+  }
+  else {
+    const PlatformFramebuffer fb = platformGetSWFramebuffer();
+    const uint32_t* px = (const uint32_t*)fb.pixels;
+    for(size_t ii = 0; ii < size_t(w)*h; ++ii) {
+      uint32_t c = px[ii];
+      out[ii] = ((c >> fb.rshift) & 0xFF) | (((c >> fb.gshift) & 0xFF) << 8) | (((c >> fb.bshift) & 0xFF) << 16) | 0xFF000000u;
+    }
+  }
+  return img;
 }
 
 PlatformFramebuffer platformGetSWFramebuffer()
@@ -91,9 +202,9 @@ PlatformFramebuffer platformGetSWFramebuffer()
   return PlatformFramebuffer{swFramebuffer.data(), headlessWin.width, headlessWin.height, 16, 8, 0, 24};
 }
 
-void platformPresent() {}
+void platformPresent() { if(headlessUsingGL()) glFlush(); }
 WindowPos platformGetWindowPos() { return WindowPos{0, 0, headlessWin.width, headlessWin.height, 0, 0}; }
-void platformShutdown() { swFramebuffer.clear(); swFramebuffer.shrink_to_fit(); }
+void platformShutdown() { shutdownGL(); swFramebuffer.clear(); swFramebuffer.shrink_to_fit(); }
 
 struct HeadlessCursor : public PlatformCursor {};
 std::unique_ptr<PlatformCursor> platformCreateCursor(const Image* image, int hot_x, int hot_y)

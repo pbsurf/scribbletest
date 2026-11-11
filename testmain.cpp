@@ -3,6 +3,7 @@
 //  tests are run in place of the event loop.
 
 #include "scribbletest.h"
+#include "headless.h"
 #include "imagecompare.h"
 #include "doccompare.h"
 #include "scribbleapp.h"
@@ -15,6 +16,12 @@
 #ifndef SCRIBBLE_TEST_PATH
 #define SCRIBBLE_TEST_PATH "."
 #endif
+
+// LeakSanitizer: ignore leaks inside GL drivers (e.g. Mesa's libgallium leaks at exit w/ some drivers)
+extern "C" const char* __lsan_default_suppressions()
+{
+  return "leak:libgallium\nleak:libEGL_mesa\nleak:libGLX_mesa\nleak:libglapi\n";
+}
 
 static int usage(const char* argv0)
 {
@@ -30,6 +37,8 @@ static int usage(const char* argv0)
       "  --redraw             run only redraw tests (partial vs. full redraw of app window at several UI scales);\n"
       "                       these also run after regular tests unless --only, --update, or --sync is given\n"
       "  --no-redraw          don't run redraw tests\n"
+      "  --gl                 use GL renderer for app window (EGL surfaceless context, e.g. Mesa llvmpipe;\n"
+      "                       set LIBGL_ALWAYS_SOFTWARE=1 to force llvmpipe); fails if GL is unavailable\n"
       "  --compare            compare two images (.png) or documents (.html, .svg) as tests do\n"
       "                       (exit code: 0 PASS, 1 MINOR, 2 FAIL); --tol is pixel or numeric tolerance\n"
       "  Exit code is 1 if any test fails, else 0\n", argv0, argv0);
@@ -86,7 +95,10 @@ int main(int argc, char* argv[])
   bool updateAll = false;
   bool perf = false;
   bool strict = false;
+  bool useGL = false;
   int redraw = 1;  // 0: skip, 1: after regular tests (if no --only, --update, --sync), 2: redraw tests only
+  // line buffered so output isn't lost (e.g. if sanitizer exits early) and stays in order w/ stderr in logs
+  setvbuf(stdout, NULL, _IOLBF, 0);
   if(argc > 1 && strcmp(argv[1], "--compare") == 0)
     return compareMain(argc, argv);
   for(int ii = 1; ii < argc; ++ii) {
@@ -121,6 +133,8 @@ int main(int argc, char* argv[])
       redraw = 2;
     else if(arg == "--no-redraw")
       redraw = 0;
+    else if(arg == "--gl")
+      useGL = true;
     else if(argv[ii][0] == '-')
       return usage(argv[0]);
     else
@@ -128,12 +142,20 @@ int main(int argc, char* argv[])
   }
 
   ScribbleApp::testMode = true;
+  headlessSetGL(useGL);
   // don't pass our args to ScribbleApp
   char* appargv[] = { argv[0], NULL };
   if(!appInit(1, appargv)) {
     fprintf(stderr, "WriteTest: app initialization failed\n");
     return 2;
   }
+  if(useGL && !Application::glRender) {
+    fprintf(stderr, "WriteTest: GL requested but not available\n");
+    appShutdown();
+    return 2;
+  }
+  printf("WriteTest: %s renderer%s%s\n", Application::glRender ? "GL" : "SW",
+      Application::glRender ? ": " : "", headlessGLRenderer());
 
   if(outPath.empty())
     outPath = FSPath(Application::appDir, "testout").path;
@@ -165,6 +187,7 @@ int main(int argc, char* argv[])
         ScribbleTest test(app->activeDoc(), app->bookmarkArea, app->scribbleMode, outPath);
         test.runRedrawTests();
         printf("%s\n", test.resultStr.c_str());
+        saveImagePNG(headlessReadWindow(), outPath + "/window.png");  // last frame, for inspection
         if(test.nFailed > 0) res = 1;
       }
     }
