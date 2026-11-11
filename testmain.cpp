@@ -27,6 +27,9 @@ static int usage(const char* argv0)
       "  --strict             count MINOR render differences as failures\n"
       "  --sync <server>      also run sync tests using whiteboard server <server>\n"
       "  --perf               run performance test instead of regular tests\n"
+      "  --redraw             run only redraw tests (partial vs. full redraw of app window at several UI scales);\n"
+      "                       these also run after regular tests unless --only, --update, or --sync is given\n"
+      "  --no-redraw          don't run redraw tests\n"
       "  --compare            compare two images (.png) or documents (.html, .svg) as tests do\n"
       "                       (exit code: 0 PASS, 1 MINOR, 2 FAIL); --tol is pixel or numeric tolerance\n"
       "  Exit code is 1 if any test fails, else 0\n", argv0, argv0);
@@ -83,6 +86,7 @@ int main(int argc, char* argv[])
   bool updateAll = false;
   bool perf = false;
   bool strict = false;
+  int redraw = 1;  // 0: skip, 1: after regular tests (if no --only, --update, --sync), 2: redraw tests only
   if(argc > 1 && strcmp(argv[1], "--compare") == 0)
     return compareMain(argc, argv);
   for(int ii = 1; ii < argc; ++ii) {
@@ -113,6 +117,10 @@ int main(int argc, char* argv[])
       perf = true;
     else if(arg == "--strict")
       strict = true;
+    else if(arg == "--redraw")
+      redraw = 2;
+    else if(arg == "--no-redraw")
+      redraw = 0;
     else if(argv[ii][0] == '-')
       return usage(argv[0]);
     else
@@ -144,13 +152,21 @@ int main(int argc, char* argv[])
       printf("%s\n", test.resultStr.c_str());
     }
     else {
-      ScribbleTest test(testPath, outPath);
-      test.onlyTests = onlyTests;
-      test.updateTests = updateTests;
-      test.updateAll = updateAll;
-      test.runAll(syncServer);
-      printf("%s\n", test.resultStr.c_str());
-      res = test.nFailed > 0 || (strict && test.nMinor > 0) ? 1 : 0;
+      if(redraw != 2) {
+        ScribbleTest test(testPath, outPath);
+        test.onlyTests = onlyTests;
+        test.updateTests = updateTests;
+        test.updateAll = updateAll;
+        test.runAll(syncServer);
+        printf("%s\n", test.resultStr.c_str());
+        res = test.nFailed > 0 || (strict && test.nMinor > 0) ? 1 : 0;
+      }
+      if(redraw == 2 || (redraw == 1 && onlyTests.empty() && updateTests.empty() && !updateAll && syncServer.empty())) {
+        ScribbleTest test(app->activeDoc(), app->bookmarkArea, app->scribbleMode, outPath);
+        test.runRedrawTests();
+        printf("%s\n", test.resultStr.c_str());
+        if(test.nFailed > 0) res = 1;
+      }
     }
   }
 

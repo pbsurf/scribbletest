@@ -20,6 +20,8 @@ public:
   void runAll(const std::string& syncServer = "");
   void performanceTest();
   void syncSlaveMsg(std::string msg, int level);
+  // redraw tests use the app's main window, so use ScribbleTest(app->activeDoc(), ...) constructor
+  void runRedrawTests();
 
   // set by caller before runAll(): tests to run (all if empty); tests for which refs should be updated from
   //  output if they don't PASS (or all tests if updateAll)
@@ -79,7 +81,7 @@ private:
   static const int release = INPUTEVENT_RELEASE;
   void undo() { scribbleDoc->doCommand(ID_UNDO); }
   void redo() { scribbleDoc->doCommand(ID_REDO); }
-  void doCommand(int cmd) { scribbleDoc->doCommand(cmd); }
+  void doCommand(int cmd);
   void ie(Dim x, Dim y, Dim p, int src, int ev = 0, int mm = 0);
   void mtinput(inputevent_t ev1, Dim x1, Dim y1, inputevent_t ev2, Dim x2, Dim y2);
   void ss(Dim offset);
@@ -111,6 +113,15 @@ private:
   void synctest01();
   void synctest01slave1();
   void synctest01slave2();
+
+  // redraw tests
+  bool redrawFrames = false;  // draw frame (Application::layoutAndDraw()) after each input event
+  std::string redrawScale;
+  void redrawStepBegin(const char* step);
+  void drawFrame();
+  void setUIScale(int dpi);
+  void zigzag(Dim x0, Dim y0, int n, Dim dx, Dim dy);
+  void redrawScript();
 };
 
 #endif

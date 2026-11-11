@@ -1,12 +1,7 @@
-// Redraw check - debugging aid for partial redraw with SW renderer
-// After each SW frame, the whole window is redrawn into a scratch buffer and compared to the framebuffer
-//  produced by the normal (partial) redraw, and pixels changed outside the frame's dirty rect are reported.
-//  Failures are logged and frameN_{partial,full,diff}.png written (dirty rect outlined in blue in diff image).
-//  If the framebuffer is correct but the window isn't, the problem is in presentation (platform layer).
-// Linked into WriteRedrawCheck (`make DEBUG=1 redrawcheck`), which is Write w/ this file; requires SW renderer
-//  (glRender = 0).  Output dir is $WRITE_REDRAW_CHECK, or ./redrawcheck if not set.
+// Redraw check - see redrawcheck.h
 // Note the extra full redraw could mask bugs that depend on state changed by drawing.
 
+#include "redrawcheck.h"
 #include "application.h"
 #include "ugui/svggui.h"
 #include "ugui/svggui_platform.h"
@@ -21,9 +16,13 @@
 #include <cstring>
 
 static std::string redrawCheckDir;
+static std::string dumpPrefix;
+static bool logMinorFrames = true;
+static RedrawCheckStats stats;
 static std::vector<uint32_t> fullFB;  // full redraw
 static std::vector<uint32_t> prevFB;  // previous frame, to find pixels changed outside dirty rect
-static int frameNum = 0, nFails = 0, nMinor = 0;
+static int frameNum = 0;
+static int nDumps = 0;
 static const int MAX_DUMPS = 50;
 
 static Image fbToImage(const uint32_t* px, const PlatformFramebuffer& fb)
@@ -68,9 +67,13 @@ static void checkChangedOutside(const PlatformFramebuffer& fb, const Rect& dirty
         }
       }
     }
-    if(nout > 0)
-      PLATFORM_LOG("Redraw check frame %d (dirty %s): %d px changed outside dirty rect, bbox %s\n",
+    if(nout > 0) {
+      std::string msg = fstring("%sframe %d (dirty %s): %d px changed outside dirty rect, bbox %s", dumpPrefix.c_str(),
           frameNum, fmtRect(dirty).c_str(), nout, fmtRect(outbbox).c_str());
+      PLATFORM_LOG("Redraw check %s\n", msg.c_str());
+      ++stats.outside;
+      if(stats.firstFail.empty()) stats.firstFail = msg;
+    }
   }
   prevFB.assign(fbpx, fbpx + npx);
 }
@@ -79,6 +82,7 @@ static void checkRedraw(const PlatformFramebuffer& fb, const Rect& dirty)
 {
   if(!fb.pixels) return;
   ++frameNum;
+  ++stats.frames;
   checkChangedOutside(fb, dirty);
 
   // full redraw into scratch buffer, filled w/ magenta so any pixels not drawn show up
@@ -108,32 +112,43 @@ static void checkRedraw(const PlatformFramebuffer& fb, const Rect& dirty)
   if(res.verdict == ImageCompareResult::PASS)
     return;  // only alpha differed
   if(res.verdict == ImageCompareResult::MINOR) {
-    if(++nMinor <= 10 || nMinor % 100 == 0)
-      PLATFORM_LOG("Redraw check frame %d (dirty %s): MINOR (%d total): %s\n", frameNum,
-          fmtRect(dirty).c_str(), nMinor, res.summary().c_str());
+    ++stats.minor;
+    if(logMinorFrames && (stats.minor <= 10 || stats.minor % 100 == 0))
+      PLATFORM_LOG("Redraw check %sframe %d (dirty %s): MINOR (%d total): %s\n", dumpPrefix.c_str(), frameNum,
+          fmtRect(dirty).c_str(), stats.minor, res.summary().c_str());
     return;
   }
-  ++nFails;
-  PLATFORM_LOG("Redraw check frame %d (dirty %s): FAIL (%d total): %s\n", frameNum,
-      fmtRect(dirty).c_str(), nFails, res.summary().c_str());
-  if(nFails > MAX_DUMPS)
+  ++stats.fails;
+  std::string msg = fstring("%sframe %d (dirty %s): %s", dumpPrefix.c_str(), frameNum, fmtRect(dirty).c_str(),
+      res.summary().c_str());
+  PLATFORM_LOG("Redraw check FAIL %s\n", msg.c_str());
+  if(stats.firstFail.empty()) stats.firstFail = msg;
+  if(++nDumps > MAX_DUMPS)
     return;
-  std::string base = redrawCheckDir + fstring("/frame%05d_", frameNum);
+  std::string base = redrawCheckDir + "/" + dumpPrefix + fstring("frame%05d_", frameNum);
   saveImagePNG(partial, base + "partial.png");
   saveImagePNG(full, base + "full.png");
   outlineRect(res.diffImg, dirty, 0xFFFF0000u);  // blue (RGBA bytes)
   saveImagePNG(res.diffImg, base + "diff.png");
 }
 
-// installed at startup
-static struct RedrawCheckInit {
-  RedrawCheckInit()
-  {
-    const char* dir = getenv("WRITE_REDRAW_CHECK");
-    redrawCheckDir = dir && dir[0] ? dir : "redrawcheck";
-    createPath(redrawCheckDir);
-    PLATFORM_LOG("Redraw check enabled (SW renderer only); writing failures to %s\n",
-        canonicalPath(redrawCheckDir).c_str());
-    Application::swFrameHook = checkRedraw;
-  }
-} redrawCheckInit;
+void redrawCheckEnable(const std::string& outDir, const std::string& filePrefix, bool logMinor)
+{
+  redrawCheckDir = outDir;
+  dumpPrefix = filePrefix;
+  logMinorFrames = logMinor;
+  createPath(redrawCheckDir);
+  prevFB.clear();  // frames drawn while disabled weren't seen
+  stats = RedrawCheckStats();
+  Application::swFrameHook = checkRedraw;
+}
+
+void redrawCheckDisable()
+{
+  Application::swFrameHook = NULL;
+  prevFB.clear();
+}
+
+const RedrawCheckStats& redrawCheckStats() { return stats; }
+void redrawCheckResetStats() { stats = RedrawCheckStats(); }
+void redrawCheckSetPrefix(const std::string& filePrefix) { dumpPrefix = filePrefix; }

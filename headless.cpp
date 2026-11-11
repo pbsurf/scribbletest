@@ -87,7 +87,8 @@ PlatformWindow* platformInit(PlatformConfig& cfg)
 PlatformFramebuffer platformGetSWFramebuffer()
 {
   swFramebuffer.resize(size_t(headlessWin.width)*headlessWin.height);
-  return PlatformFramebuffer{swFramebuffer.data(), headlessWin.width, headlessWin.height, 0, 8, 16, 24};
+  // same channel order as X11 (linuxmain.cpp)
+  return PlatformFramebuffer{swFramebuffer.data(), headlessWin.width, headlessWin.height, 16, 8, 0, 24};
 }
 
 void platformPresent() {}

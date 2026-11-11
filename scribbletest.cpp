@@ -11,6 +11,8 @@
 #include "scribbleapp.h"
 #include "scribbleinput.h"
 #include "page.h"
+#include "redrawcheck.h"
+#include "ugui/svggui.h"
 
 // Ideally, these tests should be run under valgrind to help check for memory leaks
 // to accept new output as refs, use `WriteTest --update=<test numbers>` (see testmain.cpp)
@@ -667,6 +669,13 @@ void ScribbleTest::s3(Dim xoffset, Dim yoffset)
 void ScribbleTest::ie(Dim x, Dim y, Dim p, int src, int ev, int mm)
 {
   scribbleArea->scribbleInput->doInputEvent(x, y, p, (inputsource_t)src, (inputevent_t)ev, mm, 0);
+  if(redrawFrames) drawFrame();
+}
+
+void ScribbleTest::doCommand(int cmd)
+{
+  scribbleDoc->doCommand(cmd);
+  if(redrawFrames) drawFrame();
 }
 
 void ScribbleTest::mtinput(inputevent_t ev1, Dim x1, Dim y1, inputevent_t ev2, Dim x2, Dim y2)
@@ -677,6 +686,7 @@ void ScribbleTest::mtinput(inputevent_t ev1, Dim x1, Dim y1, inputevent_t ev2, D
   if(ev2 != INPUTEVENT_NONE)
     ievent.points.push_back(InputPoint(ev2, x2, y2, 1));
   scribbleArea->scribbleInput->doInputEvent(ievent);
+  if(redrawFrames) drawFrame();
 }
 
 // draw a simple stroke
@@ -1680,4 +1690,158 @@ void ScribbleTest::synctest01slave2()
   // wait for connection
   while(!scribbleDoc->scribbleSync->isSyncActive())
     ScribbleApp::processEvents();
+}
+
+// Redraw tests: unlike the other tests, these use the app's main window (so drawing goes through SvgGui and
+//  Application::layoutAndDraw() as in the real app), drawing a frame after every input event w/ the redraw
+//  check (redrawcheck.h) comparing each partial redraw to a full redraw.  This catches bugs like drawing outside
+//  the dirty rect or not including everything that changed in the dirty rect - e.g. gaps in in-progress stroke.
+//  Run at several UI scales, since non-integer scales exposed clip rounding bugs.
+
+void ScribbleTest::drawFrame()
+{
+  scribbleArea->doRefresh();  // as ScribbleWidget does after each input event
+  platformProcessEvents(false);  // dispatch queued events (e.g. window resize) w/o waiting
+  Application::layoutAndDraw();
+}
+
+// dump file names: <scale>_<step>_frameN_...
+void ScribbleTest::redrawStepBegin(const char* step)
+{
+  redrawCheckSetPrefix(redrawScale + "_" + step);
+}
+
+void ScribbleTest::setUIScale(int dpi)
+{
+  Application::setupUIScale(dpi);
+  // resize window to match new scale, as when window size changes
+  SDL_Event event = {0};
+  event.type = SDL_WINDOWEVENT;
+  event.window.event = SDL_WINDOWEVENT_SIZE_CHANGED;
+  SDL_PushEvent(&event);
+  drawFrame();
+}
+
+// stroke w/ n segments in a zigzag, w/ varying pressure; then hover away from end
+void ScribbleTest::zigzag(Dim x0, Dim y0, int n, Dim dx, Dim dy)
+{
+  ie(x0, y0, 0.5, pen, press);
+  for(int ii = 1; ii <= n; ++ii)
+    ie(x0 + ii*dx, y0 + ((ii/4) % 2 ? 4 - ii % 4 : ii % 4)*dy, 0.3 + 0.7*(ii % 5)/4.0, pen);
+  ie(0, 0, 0, pen, release);
+  for(int ii = 1; ii <= 5; ++ii)
+    ie(x0 + n*dx + ii*3, y0 + ii*4, 0, pen);  // hover
+}
+
+void ScribbleTest::redrawScript()
+{
+  scribbleDoc->newDocument();
+  scribbleArea->drawCursor = 2;  // draw hover cursor (as on mobile)
+  scribbleMode->setMode(MODE_STROKE);
+  drawFrame();
+
+  redrawStepBegin("hover_");
+  for(int ii = 0; ii < 20; ++ii)
+    ie(150 + ii*7, 120 + ii*3, 0, pen);
+
+  redrawStepBegin("flatpen_");  // default pen (filled stroke)
+  scribbleDoc->app->setPen(ScribblePen(Color::BLACK, 1.6, ScribblePen::TIP_FLAT | ScribblePen::WIDTH_PR, 0.9, 2.0));
+  zigzag(100, 150, 40, 4.3, 7.7);
+  redrawStepBegin("roundpen_");  // stroked path
+  scribbleDoc->app->setPen(ScribblePen(Color::BLUE, 4, ScribblePen::TIP_ROUND));
+  zigzag(110, 220, 30, 5.1, 9.3);
+  redrawStepBegin("roundprpen_");
+  scribbleDoc->app->setPen(ScribblePen(Color::RED, 3, ScribblePen::TIP_ROUND | ScribblePen::WIDTH_PR, 0.8, 2.0));
+  zigzag(105, 290, 30, 5.7, 6.1);
+  redrawStepBegin("highlighter_");
+  scribbleDoc->app->setPen(ScribblePen(Color(255, 127, 255, 127), 34, ScribblePen::TIP_CHISEL | ScribblePen::DRAW_UNDER));
+  zigzag(90, 160, 12, 15.3, 20.2);
+
+  redrawStepBegin("erase_");
+  scribbleMode->setMode(MODE_ERASE);
+  ie(130, 140, 0, pen, press);
+  for(int ii = 1; ii <= 15; ++ii)
+    ie(130 + ii*2.3, 140 + ii*12.1, 0, pen);
+  ie(0, 0, 0, pen, release);
+
+  redrawStepBegin("select_");
+  scribbleMode->setMode(MODE_SELECTRECT);
+  ie(95.5, 200.5, 0, pen, press);
+  for(int ii = 1; ii <= 10; ++ii)
+    ie(95.5 + ii*21.3, 200.5 + ii*13.7, 0, pen);
+  ie(0, 0, 0, pen, release);
+  redrawStepBegin("movesel_");
+  ie(200, 260, 0, pen, press);
+  for(int ii = 1; ii <= 10; ++ii)
+    ie(200 + ii*3.7, 260 + ii*5.3, 0, pen);
+  ie(0, 0, 0, pen, release);
+  doCommand(ID_SELALL);
+  doCommand(ID_UNDO);
+
+  redrawStepBegin("undo_");
+  for(int ii = 0; ii < 4; ++ii)
+    doCommand(ID_UNDO);
+  for(int ii = 0; ii < 4; ++ii)
+    doCommand(ID_REDO);
+
+  redrawStepBegin("inssp_");
+  scribbleMode->setMode(MODE_INSSPACERULED);
+  ie(14.4, 156.4, 0, pen, press);
+  ie(16.5, 185.2, 0, pen);
+  ie(16.5, 199.9, 0, pen);
+  ie(15.8, 212.3, 0, pen);
+  ie(0, 0, 0, pen, release);
+
+  redrawStepBegin("pinch_");
+  mtinput(INPUTEVENT_PRESS, 120, 140, INPUTEVENT_NONE, 0, 0);
+  mtinput(INPUTEVENT_MOVE, 135, 128, INPUTEVENT_NONE, 0, 0);
+  mtinput(INPUTEVENT_MOVE, 132, 125, INPUTEVENT_PRESS, 345, 327);
+  mtinput(INPUTEVENT_MOVE, 144, 137, INPUTEVENT_MOVE, 340, 317);
+  mtinput(INPUTEVENT_MOVE, 200, 197, INPUTEVENT_MOVE, 290, 295);
+  mtinput(INPUTEVENT_MOVE, 216, 210, INPUTEVENT_MOVE, 264, 256);
+  mtinput(INPUTEVENT_RELEASE, 216, 210, INPUTEVENT_MOVE, 262, 256);
+  mtinput(INPUTEVENT_NONE, 0, 0, INPUTEVENT_MOVE, 260, 254);
+  mtinput(INPUTEVENT_NONE, 0, 0, INPUTEVENT_RELEASE, 260, 246);
+
+  redrawStepBegin("zoomedpen_");
+  scribbleMode->setMode(MODE_STROKE);
+  scribbleDoc->app->setPen(ScribblePen(Color::BLACK, 1.6, ScribblePen::TIP_FLAT | ScribblePen::WIDTH_PR, 0.9, 2.0));
+  zigzag(120, 330, 30, 4.9, 8.3);
+  doCommand(ID_RESETZOOM);
+}
+
+void ScribbleTest::runRedrawTests()
+{
+  // UI scales: 1, a non-integer scale < 1 (where stroke gaps were found), and > 1
+  const int dpis[] = {150, 114, 171};
+  removeDir(outPath + "/redraw");  // remove output from previous run
+  std::vector<std::string> failed;
+  std::string details;
+  Timestamp t0 = mSecSinceEpoch();
+  int nframes = 0;
+  redrawFrames = true;
+  for(int dpi : dpis) {
+    std::string scalestr = fstring("scale%.2f", dpi/150.0);
+    redrawScale = scalestr;
+    setUIScale(dpi);
+    redrawCheckEnable(outPath + "/redraw", scalestr + "_", false);
+    redrawScript();
+    redrawCheckDisable();
+    const RedrawCheckStats& st = redrawCheckStats();
+    nframes += st.frames;
+    if(st.fails > 0 || st.outside > 0) {
+      failed.push_back(scalestr);
+      details += fstring("redraw FAIL - %s: %d of %d frames differ from full redraw, %d w/ pixels changed outside"
+          " dirty rect; first: %s\n", scalestr.c_str(), st.fails, st.frames, st.outside, st.firstFail.c_str());
+    }
+    else if(st.minor > 0)
+      details += fstring("redraw MINOR - %s: %d of %d frames w/ small differences from full redraw\n",
+          scalestr.c_str(), st.minor, st.frames);
+  }
+  redrawFrames = false;
+  Application::setupUIScale(0);  // restore default
+  nFailed = int(failed.size());
+  resultStr = details + fstring("Redraw tests: %d frames at %d scales in %d ms: %d failed (%s)%s", nframes,
+      int(sizeof(dpis)/sizeof(dpis[0])), int(mSecSinceEpoch() - t0), nFailed, joinStr(failed, ", ").c_str(),
+      nFailed > 0 ? ("; see " + outPath + "/redraw/").c_str() : "");
 }
