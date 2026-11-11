@@ -117,7 +117,15 @@ private:
   // redraw tests
   bool redrawFrames = false;  // draw frame (Application::layoutAndDraw()) after each input event
   std::string redrawScale;
+  std::string redrawStep;
   void redrawStepBegin(const char* step);
+  // GL vs SW renderer comparison (GL only)
+  struct RendererResult { std::string name; ImageCompareResult::Verdict verdict; std::string summary; int maxDiff; };
+  std::vector<RendererResult> rendererResults;
+  // FAIL if any pixel differs by more than tol (after 3x3 neighborhood matching - see imagecompare.h); max seen w/
+  //  llvmpipe and SVGA3D: 49, at pixel-aligned high contrast edges (GL gives a few % coverage to adjacent pixel)
+  ImageCompareParams rendererParams = {64, 0};
+  void compareRenderers();
   void drawFrame();
   void setUIScale(int dpi);
   void zigzag(Dim x0, Dim y0, int n, Dim dx, Dim dy);

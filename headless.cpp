@@ -140,7 +140,9 @@ static bool initGL()
   //  then blits to and rebinds previously bound FBO, i.e. this one
   glGenRenderbuffers(1, &winRB);
   glBindRenderbuffer(GL_RENDERBUFFER, winRB);
-  glRenderbufferStorage(GL_RENDERBUFFER, GL_RGBA8, headlessWin.width, headlessWin.height);
+  // sRGB, like typical window framebuffers (e.g. Mesa GLX), so that blit from app's sRGB framebuffer w/
+  //  GL_FRAMEBUFFER_SRGB enabled doesn't convert to linear; no effect if GL_FRAMEBUFFER_SRGB is disabled
+  glRenderbufferStorage(GL_RENDERBUFFER, GL_SRGB8_ALPHA8, headlessWin.width, headlessWin.height);
   glGenFramebuffers(1, &winFBO);
   glBindFramebuffer(GL_FRAMEBUFFER, winFBO);
   glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_RENDERBUFFER, winRB);
@@ -162,9 +164,8 @@ PlatformWindow* platformInit(PlatformConfig& cfg)
 {
   if(!(wantGL && (cfg.flags & PlatformConfig::USE_GL) && initGL()))
     cfg.flags &= ~PlatformConfig::USE_GL;  // SW rendering
-  // sRGB window framebuffer is only relevant for GLES; SW renders to a plain RGBA framebuffer
-  if(!headlessUsingGL())
-    cfg.flags &= ~PlatformConfig::SRGB;
+  // SRGB flag left as is, as in linuxmain.cpp (only relevant for GLES; w/ SW, app's sRGB pref enables linear
+  //  blending in SW renderer)
   return &headlessWin;
 }
 

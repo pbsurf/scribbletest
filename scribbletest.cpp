@@ -12,6 +12,7 @@
 #include "scribbleinput.h"
 #include "page.h"
 #include "redrawcheck.h"
+#include "headless.h"
 #include "ugui/svggui.h"
 
 // Ideally, these tests should be run under valgrind to help check for memory leaks
@@ -1708,7 +1709,55 @@ void ScribbleTest::drawFrame()
 // dump file names: <scale>_<step>_frameN_...
 void ScribbleTest::redrawStepBegin(const char* step)
 {
+  compareRenderers();  // state at end of previous step
+  redrawStep = step;
   redrawCheckSetPrefix(redrawScale + "_" + step);
+}
+
+// GL only: draw current state of window w/ SW renderer and compare to GL, so differences are due only to
+//  renderer (both draw from same app state in same process)
+void ScribbleTest::compareRenderers()
+{
+  if(!Application::glRender || redrawStep.empty()) return;
+  Painter* glp = Application::painter;
+  SvgGui* gui = Application::gui;
+  // draw all text as paths for GL too (SW can't use text atlas - see below); full redraw via normal app path
+  float atlasthresh = glp->atlasTextThresh;
+  glp->setAtlasTextThreshold(0);
+  gui->closedWindowBounds.rectUnion(gui->windows.front()->winBounds());
+  Application::layoutAndDraw();
+  int w = int(glp->deviceRect.width()), h = int(glp->deviceRect.height());
+  Image glimg = headlessReadWindow();
+  // restore text atlas and redraw so following partial redraws are consistent
+  glp->setAtlasTextThreshold(atlasthresh);
+  gui->closedWindowBounds.rectUnion(gui->windows.front()->winBounds());
+  Application::layoutAndDraw();
+  if(glimg.width != w || glimg.height != h) return;
+  Image swimg(w, h);
+  {
+    Painter swp(Painter::PAINT_SW | (glp->createFlags & Painter::SRGB_AWARE), &swimg);
+    // no text atlas: fontstash atlas is shared by all nanovg contexts, but only the first gets an atlas texture
+    //  (and dirty region is cleared by first to upload), so SW draws all text as paths, unlike app's painter
+    swp.deviceRect = Rect::wh(w, h);
+    bool prevFullRedraw = gui->fullRedraw;
+    gui->fullRedraw = true;
+    gui->closedWindowBounds.rectUnion(swp.deviceRect);  // force redraw
+    gui->layoutAndDraw(&swp);
+    swp.endFrame();
+    gui->fullRedraw = prevFullRedraw;
+  }
+  ImageCompareResult res = compareImages(swimg, glimg, rendererParams);
+  std::string name = redrawScale + "_" + redrawStep;
+  rendererResults.push_back({name, res.verdict, res.summary(), res.maxDiff});
+  // small differences are expected between renderers, so only FAIL is reported
+  if(res.verdict == ImageCompareResult::FAIL) {
+    PLATFORM_LOG("GL vs SW FAIL %s: %s\n", name.c_str(), res.summary().c_str());
+    std::string base = outPath + "/redraw/glsw_" + name;
+    saveImagePNG(swimg, base + "sw.png");
+    saveImagePNG(glimg, base + "gl.png");
+    if(!res.diffImg.isNull())
+      saveImagePNG(res.diffImg, base + "diff.png");
+  }
 }
 
 void ScribbleTest::setUIScale(int dpi)
@@ -1808,6 +1857,7 @@ void ScribbleTest::redrawScript()
   scribbleDoc->app->setPen(ScribblePen(Color::BLACK, 1.6, ScribblePen::TIP_FLAT | ScribblePen::WIDTH_PR, 0.9, 2.0));
   zigzag(120, 330, 30, 4.9, 8.3);
   doCommand(ID_RESETZOOM);
+  redrawStepBegin("end_");
 }
 
 void ScribbleTest::runRedrawTests()
@@ -1823,6 +1873,7 @@ void ScribbleTest::runRedrawTests()
   for(int dpi : dpis) {
     std::string scalestr = fstring("scale%.2f", dpi/150.0);
     redrawScale = scalestr;
+    redrawStep.clear();
     setUIScale(dpi);
     redrawCheckEnable(outPath + "/redraw", scalestr + "_", false);
     redrawScript();
@@ -1834,6 +1885,24 @@ void ScribbleTest::runRedrawTests()
       details += fstring("redraw FAIL - %s: %d of %d frames differ from full redraw, %d w/ pixels changed outside"
           " dirty rect; first: %s\n", scalestr.c_str(), st.fails, st.frames, st.outside, st.firstFail.c_str());
     }
+    // GL vs SW comparisons for this scale (GL only)
+    int nrfail = 0, nrcmp = 0, maxrdiff = 0;
+    std::string firstrfail;
+    for(const RendererResult& r : rendererResults) {
+      if(r.name.compare(0, scalestr.size(), scalestr) != 0) continue;
+      ++nrcmp;
+      maxrdiff = std::max(maxrdiff, r.maxDiff);
+      if(r.verdict == ImageCompareResult::FAIL && nrfail++ == 0)
+        firstrfail = r.name + ": " + r.summary;
+    }
+    if(nrfail > 0) {
+      failed.push_back(scalestr + " GL vs SW");
+      details += fstring("redraw FAIL - %s: GL differs from SW render in %d of %d comparisons; first: %s\n",
+          scalestr.c_str(), nrfail, nrcmp, firstrfail.c_str());
+    }
+    else if(nrcmp > 0)
+      details += fstring("GL vs SW %s: %d comparisons, max difference %d (tolerance %d)\n", scalestr.c_str(),
+          nrcmp, maxrdiff, rendererParams.tol);
     else if(st.minor > 0)
       details += fstring("redraw MINOR - %s: %d of %d frames w/ small differences from full redraw\n",
           scalestr.c_str(), st.minor, st.frames);
