@@ -118,10 +118,11 @@ struct TestSock
   std::string drain(double t = 0.1) { while(poll(t)) {} std::string res; res.swap(buf); return res; }
 };
 
-std::string httpGet(int port, const std::string& path, const std::string& cookie = "")
+// headers: extra headers, each terminated by \r\n
+std::string httpGet(int port, const std::string& path, const std::string& cookie = "", const std::string& headers = "")
 {
   TestSock s(port);
-  std::string req = "GET " + path + " HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n";
+  std::string req = "GET " + path + " HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n" + headers;
   if(!cookie.empty()) req += "Cookie: session=" + cookie + "\r\n";
   s.send(req + "\r\n");
   s.waitClosed();
@@ -323,6 +324,51 @@ void ScribbleTest::runServerTests()
     TestSock u3(srv.port());
     u3.send("GET /v1/swb HTTP/1.1\r\nUpgrade: websocket\r\nConnection: Upgrade\r\n\r\n");
     check(u3.waitClosed() && u3.buf.compare(0, 12, "HTTP/1.1 426") == 0, "unsupported Upgrade -> 426");
+  }
+
+  // reverse proxy headers
+  {
+    section = "trustProxy";
+    // headers are ignored w/o trustProxy
+    {
+      TestServer srv(SWBServerOptions{});
+      if(!check(srv.ok, "server start")) goto done;
+      std::string resp = httpGet(srv.port(), "/v1/auth?user=bob", "", "X-Remote-User: alice\r\n");
+      std::string cookie = between(resp, "Set-Cookie: session=", "\r;");
+      check(httpBody(httpGet(srv.port(), "/v1/createswb?name=p0", cookie)).find("user='bob'") != std::string::npos,
+          "X-Remote-User ignored w/o trustProxy");
+    }
+    SWBServerOptions opts;
+    opts.trustProxy = true;
+    opts.enableTest = true;
+    TestServer srv(opts);
+    if(!check(srv.ok, "server start")) goto done;
+    int port = srv.port();
+    const std::string alice = "X-Remote-User: alice\r\n";
+    std::string resp = httpGet(port, "/v1/auth?user=mallory", "", alice);
+    std::string cookie = between(resp, "Set-Cookie: session=", "\r;");
+    std::string body = httpBody(httpGet(port, "/v1/createswb?name=p1", cookie, alice));
+    check(body.find("user='alice'") != std::string::npos, "X-Remote-User overrides user arg: " + body);
+    std::string token = between(body, "token='", "'");
+    check(httpGet(port, "/v1/openswb?name=p1", cookie, "X-Remote-User: bob\r\n").compare(0, 12, "HTTP/1.1 403") == 0,
+        "session user != proxy user -> 403");
+    check(httpGet(port, "/v1/openswb?name=p1", cookie).compare(0, 12, "HTTP/1.1 200") == 0, "no proxy user -> session user");
+    // relay via upgrade: /start user must match proxy user; client address from proxy headers
+    const std::string upgradeReq = "GET /v1/swb HTTP/1.1\r\nUpgrade: swb\r\nConnection: Upgrade\r\n";
+    TestSock u(port);
+    u.send(upgradeReq + alice + "X-Forwarded-For: 10.9.9.9, 203.0.113.7\r\n\r\n" + startCmd("alice", "p1", token, "1"));
+    check(!u.readUntil(connectMsg("alice", "1")).empty(), "upgrade w/ matching proxy user");
+    TestSock u2(port);
+    u2.send(upgradeReq + "X-Remote-User: bob\r\nX-Real-IP: 198.51.100.2\r\n\r\n"
+        + startCmd("t1", "testdoc", "SCRIBBLE_SYNC_TEST", "2"));
+    check(!u2.readUntil("accessdenied").empty() && u2.waitClosed(), "/start user != proxy user rejected (even w/ test token)");
+    TestSock u3(port);
+    u3.send(upgradeReq + "X-Real-IP: 198.51.100.3\r\nX-Forwarded-For: 203.0.113.9\r\n\r\n"
+        + startCmd("t3", "testdoc", "SCRIBBLE_SYNC_TEST", "3"));
+    check(!u3.readUntil(connectMsg("t3", "3")).empty(), "upgrade w/o proxy user");
+    std::string dbg = httpBody(httpGet(port, "/v1/debug"));
+    check(dbg.find("alice@203.0.113.7") != std::string::npos && dbg.find("t3@198.51.100.3") != std::string::npos,
+        "client address from X-Forwarded-For (last entry) and X-Real-IP: " + dbg);
   }
 
   // Write's client code: sign in and create whiteboard
