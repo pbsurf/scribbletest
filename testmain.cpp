@@ -37,11 +37,13 @@ static int usage(const char* argv0)
       "  --strict             count MINOR render differences as failures\n"
       "  --sync <server>      run sync tests using whiteboard server <server>[:port]; 'local' to use a server\n"
       "                       running in this process (on a free port)\n"
+      "  --sync-relay=<mode>  'upgrade' (default for local server) to connect to relay via HTTP Upgrade on API\n"
+      "                       port, or 'port1' to use port + 1 (default for other servers)\n"
       "  --perf               run performance test instead of regular tests\n"
       "  --redraw             run only redraw tests (partial vs. full redraw of app window at several UI scales);\n"
       "                       these also run after regular tests unless --only, --update, or --sync is given\n"
       "  --no-redraw          don't run redraw tests\n"
-      "  --server             run only whiteboard server tests (HTTP API, auth, relay protocol); these also\n"
+      "  --server             run only whiteboard server tests (HTTP API, relay protocol); these also\n"
       "                       run after regular tests unless --only, --update, --sync, or --redraw is given\n"
       "  --no-server          don't run whiteboard server tests\n"
       "  --gl                 use GL renderer for app window (EGL surfaceless context, e.g. Mesa llvmpipe;\n"
@@ -98,6 +100,7 @@ int main(int argc, char* argv[])
   std::string testPath = SCRIBBLE_TEST_PATH;
   std::string outPath;
   std::string syncServer;
+  std::string syncRelay;  // empty: default
   std::set<int> onlyTests, updateTests;
   bool updateAll = false;
   bool perf = false;
@@ -113,6 +116,8 @@ int main(int argc, char* argv[])
     StringRef arg(argv[ii]);
     if(arg == "--sync" && ii + 1 < argc)
       syncServer = argv[++ii];
+    else if(arg == "--sync-relay=upgrade" || arg == "--sync-relay=port1")
+      syncRelay = argv[ii] + 13;
     else if(arg == "--out" && ii + 1 < argc)
       outPath = argv[++ii];
     else if(arg.startsWith("--only=")) {
@@ -194,6 +199,8 @@ int main(int argc, char* argv[])
     }
     localServerThread = std::thread([&](){ localServer->run(); });
     syncServer = "127.0.0.1:" + std::to_string(localServer->apiPort());
+    if(syncRelay.empty())
+      syncRelay = "upgrade";
   }
 
   int res = 0;
@@ -218,6 +225,7 @@ int main(int argc, char* argv[])
         test.onlyTests = onlyTests;
         test.updateTests = updateTests;
         test.updateAll = updateAll;
+        test.syncRelay = syncRelay == "port1" ? "" : syncRelay;
         test.runAll(syncServer);
         printf("%s\n", test.resultStr.c_str());
         res = test.nFailed > 0 || (strict && test.nMinor > 0) ? 1 : 0;

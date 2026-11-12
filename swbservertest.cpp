@@ -188,13 +188,15 @@ void ScribbleTest::runServerTests()
     check(httpGet(port, "/v1/createswb?name=wb1").compare(0, 12, "HTTP/1.1 403") == 0, "no session -> 403");
     check(httpGet(port, "/v1/createswb?name=wb1", "bogus").compare(0, 12, "HTTP/1.1 403") == 0, "bad session -> 403");
     check(httpGet(port, "/v1/openswb?name=wb1", cookie).compare(0, 12, "HTTP/1.1 404") == 0, "open nonexistent -> 404");
-    resp = httpGet(port, "/v1/createswb?name=wb1&title=it's%20%3Ca%3E&rxonly=1&bad%20key=1&user=mallory", cookie);
+    resp = httpGet(port, "/v1/createswb?name=wb1&title=it's%20%3Ca%3E&rxonly=1&bad%20key=1&user=mallory&relay=x", cookie);
     std::string body = httpBody(resp);
     const std::string expectswb = "<swb name='wb1' title='it&apos;s &lt;a&gt;' rxonly='1' user='alice' token='";
     check(body.compare(0, expectswb.size(), expectswb) == 0,
         "create reply (attribute escaping, invalid/reserved keys dropped): " + body);
     std::string token = between(body, "token='", "'");
     check(token.size() == 32, "token");
+    check(body.size() > 18 && body.compare(body.size() - 18, 18, " relay='upgrade'/>") == 0
+        && body.find("relay=") == body.rfind("relay="), "relay='upgrade' advertised (and not overridable)");
     check(httpGet(port, "/v1/createswb?name=wb1", cookie).compare(0, 12, "HTTP/1.1 404") == 0, "duplicate create -> 404");
     std::string cookie2 = between(httpGet(port, "/v1/auth?user=bob&timestamp=1&signature=x"), "Set-Cookie: session=", "\r;");
     body = httpBody(httpGet(port, "/v1/openswb?name=wb1", cookie2));
@@ -292,6 +294,35 @@ void ScribbleTest::runServerTests()
     a.send(startCmd("t1", "testdoc", "SCRIBBLE_SYNC_TEST", "1"));
     check(a.readUntil(connectMsg("t1", "1")) == connectMsg("t1", "1"), "test token");
     check(httpBody(httpGet(srv.port(), "/v1/debug")).find("testdoc") != std::string::npos, "/v1/debug");
+
+    // relay via HTTP Upgrade on API port; /start sent w/o waiting for 101
+    section = "upgrade";
+    const std::string upgradeReq = "GET /v1/swb HTTP/1.1\r\nHost: x\r\nUpgrade: swb\r\nConnection: Upgrade\r\n\r\n";
+    const std::string resp101 = "HTTP/1.1 101 Switching Protocols\r\nUpgrade: swb\r\nConnection: Upgrade\r\n\r\n";
+    TestSock u(srv.port());
+    u.send(upgradeReq + startCmd("t2", "testdoc", "SCRIBBLE_SYNC_TEST", "2"));
+    check(u.readUntil(connectMsg("t2", "2")) == resp101 + connectMsg("t1", "1") + connectMsg("t2", "2"), "upgrade + history");
+    check(a.readUntil(connectMsg("t2", "2")) == connectMsg("t2", "2"), "upgraded client visible to port + 1 client");
+    // /ping is a no-op (no reply)
+    u.send("/ping\n" + dataCmd("viaupgrade") + "/ping\r\n");
+    check(a.readUntil("viaupgrade") == "viaupgrade", "data from upgraded client");
+    check(u.readUntil("viaupgrade") == "viaupgrade", "echo to upgraded client (/ping ignored)");
+    a.send(dataCmd("viaport1"));
+    check(u.readUntil("viaport1") == "viaport1", "data to upgraded client");
+    a.readUntil("viaport1");  // echo
+    u.send("/end\n");
+    check(u.waitClosed(), "/end on upgraded connection");
+    check(a.readUntil(disconnectMsg("t2")) == disconnectMsg("t2"), "upgraded client disconnect");
+    // separate 101 and /start
+    TestSock u2(srv.port());
+    u2.send("GET /v1/swb?x=1 HTTP/1.1\r\nupgrade:  h2c, SWB \r\nConnection: Upgrade\r\n\r\n");
+    check(u2.readUntil("\r\n\r\n") == resp101, "101 (Upgrade header w/ multiple protocols)");
+    u2.send(startCmd("t3", "testdoc", "SCRIBBLE_SYNC_TEST", "3"));
+    check(!u2.readUntil(connectMsg("t3", "3")).empty(), "/start after 101");
+    check(httpGet(srv.port(), "/v1/swb").compare(0, 12, "HTTP/1.1 426") == 0, "/v1/swb w/o Upgrade -> 426");
+    TestSock u3(srv.port());
+    u3.send("GET /v1/swb HTTP/1.1\r\nUpgrade: websocket\r\nConnection: Upgrade\r\n\r\n");
+    check(u3.waitClosed() && u3.buf.compare(0, 12, "HTTP/1.1 426") == 0, "unsupported Upgrade -> 426");
   }
 
   // Write's client code: sign in and create whiteboard
@@ -314,7 +345,7 @@ void ScribbleTest::runServerTests()
     if(check(app->syncSignIn(url), "syncSignIn")) {
       std::string reply = app->syncAPICall(url, "/v1/createswb?name=clientwb&title=Test");
       check(reply.compare(0, 12, "HTTP/1.1 200") == 0 && reply.find("<swb name='clientwb' title='Test' user='alice' token='")
-          != std::string::npos, "syncAPICall createswb: " + httpBody(reply));
+          != std::string::npos && reply.find("relay='upgrade'") != std::string::npos, "syncAPICall createswb: " + httpBody(reply));
     }
     cfg->set("syncServer", prevServer.c_str());
     cfg->set("syncUser", prevUser.c_str());

@@ -27,6 +27,9 @@ public:
   // set by caller before runAll(): tests to run (all if empty); tests for which refs should be updated from
   //  output if they don't PASS (or all tests if updateAll)
   std::set<int> onlyTests;
+  // relay attribute for sync tests (as sent by server in <swb> reply): "upgrade" for relay via HTTP Upgrade on API
+  //  port, empty for port + 1
+  std::string syncRelay;
   std::set<int> updateTests;
   bool updateAll = false;
 

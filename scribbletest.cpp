@@ -374,6 +374,8 @@ void ScribbleTest::writeReport(const std::vector<TestReport>& reports, int ntest
 void ScribbleTest::runAll(const std::string& syncServer)
 {
   bool runsynctest = !syncServer.empty();
+  if(runsynctest && !syncRelay.empty())
+    swbXML.first_child().append_attribute("relay").set_value(syncRelay.c_str());
   nFailed = 0;
   nMinor = 0;
   nUpdated = 0;
