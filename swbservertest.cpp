@@ -1,4 +1,4 @@
-// Tests for whiteboard server (syncscribble/swbserver.cpp): HTTP API, auth backends, relay protocol, history replay
+// Tests for whiteboard server (syncscribble/swbserver.cpp): HTTP API, relay protocol, history replay
 // - each test starts its own server on a free port on a separate thread; we talk to it w/ plain blocking sockets,
 //  except for the client sign-in test, which uses Write's own code (ScribbleApp::syncSignIn, syncAPICall)
 // - sync tests (runAll() w/ --sync local) exercise the server w/ real clients but skip the HTTP API (test token)
@@ -143,12 +143,6 @@ std::string between(const std::string& s, const std::string& a, const std::strin
   return s.substr(p0, p1 == std::string::npos ? std::string::npos : p1 - p0);
 }
 
-std::string authPath(const std::string& user, const std::string& pw, const std::string& ts = "")
-{
-  std::string t = ts.empty() ? std::to_string(mSecSinceEpoch()) : ts;
-  return "/v1/auth?user=" + user + "&timestamp=" + t + "&signature=" + md5str(md5str("styluslabs" + pw) + t);
-}
-
 std::string startCmd(const std::string& user, const std::string& doc, const std::string& token, const char* uuid, int offset = 0)
 {
   return "/start?version=1&user=" + user + "&document=" + doc + "&token=" + token
@@ -182,7 +176,7 @@ void ScribbleTest::runServerTests()
   };
   Timestamp t0 = mSecSinceEpoch();
 
-  // HTTP API in anonymous mode
+  // HTTP API (no authentication: any user accepted)
   {
     section = "API";
     TestServer srv(SWBServerOptions{});
@@ -300,39 +294,12 @@ void ScribbleTest::runServerTests()
     check(httpBody(httpGet(srv.port(), "/v1/debug")).find("testdoc") != std::string::npos, "/v1/debug");
   }
 
-  // users file
+  // Write's client code: sign in and create whiteboard
   {
-    section = "users file";
-    std::string usersfile = outPath + "/swbusers.txt";
-    removeFile(usersfile);
-    SWBServerOptions opts;
-    opts.usersFile = usersfile;
-    std::string err;
-    check(swbAddUser(opts, "bob", "old", &err), "add user to new file: " + err);
-    check(swbAddUser(opts, "alice", "pw1", &err), "add user: " + err);
-    check(swbAddUser(opts, "bob", "pw2", &err), "update user: " + err);
-    check(!swbAddUser(opts, "a:b", "pw", &err), "invalid username rejected");
-    std::string contents = readFile(usersfile.c_str());
-    check(contents.find("bob:" + md5str("styluslabspw2") + "\nalice:" + md5str("styluslabspw1") + "\n") != std::string::npos,
-        "users file contents: " + contents);
-    opts.maxClockSkew = 600;
-    TestServer srv(opts);
+    section = "client";
+    TestServer srv(SWBServerOptions{});
     if(!check(srv.ok, "server start")) goto done;
     int port = srv.port();
-    check(httpGet(port, authPath("alice", "pw1")).compare(0, 12, "HTTP/1.1 200") == 0, "valid login");
-    check(httpGet(port, authPath("bob", "pw2")).compare(0, 12, "HTTP/1.1 200") == 0, "valid login (updated)");
-    check(httpGet(port, authPath("bob", "old")).compare(0, 12, "HTTP/1.1 401") == 0, "old password");
-    // file is reloaded when modified (mtime has 1 sec resolution on some filesystems)
-    std::this_thread::sleep_for(std::chrono::milliseconds(1100));
-    check(swbAddUser(opts, "carol", "pw3", &err), "add user while running");
-    check(httpGet(port, authPath("carol", "pw3")).compare(0, 12, "HTTP/1.1 200") == 0, "users file reloaded");
-    check(httpGet(port, authPath("alice", "pw2")).compare(0, 12, "HTTP/1.1 401") == 0, "wrong password");
-    check(httpGet(port, authPath("dave", "pw3")).compare(0, 12, "HTTP/1.1 401") == 0, "unknown user");
-    check(httpGet(port, authPath("alice", "pw1", "1000")).compare(0, 12, "HTTP/1.1 401") == 0, "clock skew");
-    check(httpGet(port, "/v1/auth?user=alice").compare(0, 12, "HTTP/1.1 401") == 0, "missing signature");
-
-    // Write's client code: sign in and create whiteboard
-    section = "client";
     std::string hostport = "127.0.0.1:" + std::to_string(port);
     ScribbleApp* app = ScribbleApp::app;
     ScribbleConfig* cfg = ScribbleApp::cfg;
@@ -340,7 +307,7 @@ void ScribbleTest::runServerTests()
     std::string prevPass = cfg->String("syncPass", "");
     cfg->set("syncServer", hostport.c_str());
     cfg->set("syncUser", "alice");
-    cfg->set("syncPass", md5str("styluslabspw1").c_str());
+    cfg->set("syncPass", md5str("styluslabsanything").c_str());  // ignored by server
     Url url;
     url.host = hostport;
     url.path = "clientwb";
@@ -353,33 +320,6 @@ void ScribbleTest::runServerTests()
     cfg->set("syncUser", prevUser.c_str());
     cfg->set("syncPass", prevPass.c_str());
     app->syncSession.clear();
-  }
-
-  // sqlite (skipped if sqlite3 library isn't available)
-  {
-    section = "sqlite";
-    std::string dbfile = outPath + "/swbusers.sqlite";
-    removeFile(dbfile);
-    SWBServerOptions opts;
-    opts.dbFile = dbfile;
-    std::string err;
-    if(!swbAddUser(opts, "alice", "pw1", &err))
-      details += "server: sqlite tests skipped (" + err + ")\n";
-    else {
-      check(swbAddUser(opts, "bob", "pw2", &err) && swbAddUser(opts, "bob", "pw3", &err), "add/update user: " + err);
-      TestServer srv(opts);
-      if(check(srv.ok, "server start")) {
-        int port = srv.port();
-        check(httpGet(port, authPath("alice", "pw1")).compare(0, 12, "HTTP/1.1 200") == 0, "valid login");
-        check(httpGet(port, authPath("bob", "pw3")).compare(0, 12, "HTTP/1.1 200") == 0, "valid login (updated)");
-        check(httpGet(port, authPath("bob", "pw2")).compare(0, 12, "HTTP/1.1 401") == 0, "old password");
-        check(httpGet(port, authPath("carol", "pw1")).compare(0, 12, "HTTP/1.1 401") == 0, "unknown user");
-        // users added while running are seen immediately
-        check(swbAddUser(opts, "carol", "pw1", &err), "add user while running");
-        check(httpGet(port, authPath("carol", "pw1")).compare(0, 12, "HTTP/1.1 200") == 0, "user added while running");
-      }
-    }
-    removeFile(dbfile);
   }
 
 done:
