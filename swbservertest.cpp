@@ -8,6 +8,7 @@
 #include "scribbleconfig.h"
 #include "swbserver.h"
 #include "ulib/unet.h"
+#include "ugui/platforms/platformhttp.h"
 #include "ulib/md5.h"
 #include "ulib/fileutil.h"
 #include "ulib/platformutil.h"
@@ -15,6 +16,8 @@
 #include <thread>
 #include <memory>
 #include <functional>
+#include <mutex>
+#include <condition_variable>
 
 namespace {
 
@@ -178,6 +181,45 @@ std::string connectMsg(const char* name, const char* uuid)
 {
   return std::string("<undo><connect name='") + name + "' uuid='" + uuid + "'/></undo>\n";
 }
+
+// blocking request w/ HttpClient; state is shared so a late callback (after timeout) is harmless
+struct HttpWait
+{
+  std::mutex mutex;
+  std::condition_variable cond;
+  bool done = false;
+  HttpResponse resp;
+  Timestamp doneTime = 0;
+
+  bool wait(double timeout = 15)
+  {
+    std::unique_lock<std::mutex> lock(mutex);
+    return cond.wait_for(lock, std::chrono::milliseconds(int(timeout*1000)), [this](){ return done; });
+  }
+};
+
+std::shared_ptr<HttpWait> httpStart(HttpClient* client, HttpRequest req, uint64_t* id = NULL)
+{
+  auto w = std::make_shared<HttpWait>();
+  uint64_t reqid = client->request(std::move(req), [w](HttpResponse&& resp){
+    std::lock_guard<std::mutex> lock(w->mutex);
+    w->resp = std::move(resp);
+    w->done = true;
+    w->doneTime = mSecSinceEpoch();
+    w->cond.notify_all();
+  });
+  if(id) *id = reqid;
+  return w;
+}
+
+HttpResponse httpSync(HttpClient* client, HttpRequest req)
+{
+  auto w = httpStart(client, std::move(req));
+  if(!w->wait()) { HttpResponse r; r.error = "test timeout"; return r; }
+  return std::move(w->resp);
+}
+
+std::string bodyStr(const HttpResponse& r) { return std::string(r.body.begin(), r.body.end()); }
 
 std::string disconnectMsg(const char* name) { return std::string("<undo><disconnect name='") + name + "'/></undo>\n"; }
 
@@ -477,6 +519,104 @@ void ScribbleTest::runServerTests()
     b.waitClosed();
     std::this_thread::sleep_for(std::chrono::milliseconds(300));
     check(httpGet(port, "/v1/openswb?name=hw", acookie).compare(0, 12, "HTTP/1.1 404") == 0, "whiteboard deleted");
+  }
+
+  // HTTP client (ugui/platforms/platformhttp.h) backends
+  for(const char* backend : {"curl", "unet"}) {
+    section = std::string("HttpClient ") + backend;
+    HttpClient::Options hopts;
+    hopts.userAgent = "WriteTest";
+    std::unique_ptr<HttpClient> client = backend[0] == 'c' ? HttpClient::create(hopts) : createUnetHttpClient(hopts);
+    if(!client) {
+      details += "server: " + section + " not available - skipped\n";
+      continue;
+    }
+    SWBServerOptions opts;
+    opts.pollTimeout = 1;
+    opts.trustProxy = true;  // so we can check that request headers are sent
+    TestServer srv(opts);
+    if(!check(srv.ok, "server start")) goto done;
+    std::string base = "http://127.0.0.1:" + std::to_string(srv.port());
+    HttpClient* hc = client.get();
+
+    HttpResponse r = httpSync(hc, HttpRequest(base + "/v1/auth?user=bob", "X-Remote-User: alice"));
+    std::string cookie = r.header("set-cookie");
+    check(r.status == 200 && r.error.empty() && cookie.compare(0, 8, "session=") == 0, "GET w/ response header: "
+        + r.error + r.headers);
+    r = httpSync(hc, HttpRequest(base + "/v1/createswb?name=hc", "Cookie: " + cookie + "\r\nX-Remote-User: alice"));
+    std::string token = between(bodyStr(r), "token='", "'");
+    check(r.status == 200 && bodyStr(r).find("user='alice'") != std::string::npos, "request headers: " + bodyStr(r));
+    r = httpSync(hc, HttpRequest(base + "/v1/swb/poll?id=nosuch"));
+    check(r.status == 404 && r.error.empty(), "404 status");
+    HttpRequest startreq(base + "/v1/swb/start?document=hc&user=alice&uuid=1&token=bad");
+    startreq.method = "POST";
+    r = httpSync(hc, startreq);
+    check(r.status == 403 && bodyStr(r).find("accessdenied") != std::string::npos, "403 w/ body (empty POST)");
+    startreq.url = base + "/v1/swb/start?document=hc&user=alice&uuid=1&token=" + token;
+    std::string id = bodyStr(httpSync(hc, startreq));
+    // binary POST body (gzip data is sent by Write)
+    std::string bin(200000, '\0');
+    for(size_t ii = 0; ii < bin.size(); ++ii) bin[ii] = char((ii*7919) >> 3);
+    r = httpSync(hc, HttpRequest(base + "/v1/swb/send?id=" + id + "&seq=1", "Content-Type: application/octet-stream", bin));
+    check(r.status == 200, "binary POST: " + r.error);
+    r = httpSync(hc, HttpRequest(base + "/v1/swb/poll?id=" + id + "&offset=0"));
+    std::string hist = connectMsg("alice", "1") + bin;
+    check(r.status == 200 && bodyStr(r) == hist, fstring("binary response (%d bytes)", int(r.body.size())));
+    std::string pollEnd = base + "/v1/swb/poll?id=" + id + "&offset=" + std::to_string(hist.size());
+    // long poll: server responds after pollTimeout (1 s) w/ empty body
+    Timestamp tq = mSecSinceEpoch();
+    r = httpSync(hc, HttpRequest(pollEnd));
+    check(r.status == 200 && r.body.empty() && mSecSinceEpoch() - tq > 800, "long poll");
+    // request timeout
+    HttpRequest shortreq(pollEnd);
+    shortreq.timeout = 0.3;
+    tq = mSecSinceEpoch();
+    r = httpSync(hc, shortreq);
+    check(r.status == 0 && !r.error.empty() && mSecSinceEpoch() - tq < 900, "request timeout: " + r.error);
+    // cancel pending request
+    uint64_t reqid = 0;
+    auto w = httpStart(hc, HttpRequest(pollEnd), &reqid);
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    tq = mSecSinceEpoch();
+    hc->cancel(reqid);
+    check(w->wait(2) && w->resp.status == 0 && w->resp.error == HttpClient::CANCELLED && w->doneTime - tq < 500,
+        "cancel: " + w->resp.error);
+    hc->cancel(reqid);  // no effect
+    // more simultaneous requests than maxActive
+    std::vector<std::shared_ptr<HttpWait>> waits;
+    for(int ii = 0; ii < 20; ++ii)
+      waits.push_back(httpStart(hc, HttpRequest(base + "/v1/swb/poll?id=nosuch&n=" + std::to_string(ii))));
+    int nok = 0;
+    for(auto& wt : waits) nok += wt->wait(5) && wt->resp.status == 404 ? 1 : 0;
+    check(nok == 20, fstring("simultaneous requests (%d/20)", nok));
+    // request from callback
+    auto w2 = std::make_shared<HttpWait>();
+    hc->request(HttpRequest(base + "/v1/swb/poll?id=nosuch"), [hc, w2, base](HttpResponse&& resp){
+      hc->request(HttpRequest(base + "/v1/swb/poll?id=nosuch"), [w2](HttpResponse&& resp2){
+        std::lock_guard<std::mutex> lock(w2->mutex);
+        w2->resp = std::move(resp2);
+        w2->done = true;
+        w2->cond.notify_all();
+      });
+    });
+    check(w2->wait(5) && w2->resp.status == 404, "request from callback");
+    // connection refused (port of closed listening socket)
+    int lsock = unet_socket(UNET_TCP, UNET_BIND, UNET_DEFAULT, "127.0.0.1", "0");
+    struct unet_addr laddr;
+    unet_address(lsock, &laddr);
+    int closedPort = unet_address_port(&laddr);
+    unet_close(lsock);
+    r = httpSync(hc, HttpRequest("http://127.0.0.1:" + std::to_string(closedPort) + "/"));
+    check(r.status == 0 && !r.error.empty(), "connection refused: " + r.error);
+    if(backend[0] == 'u') {
+      r = httpSync(hc, HttpRequest("https://127.0.0.1:" + std::to_string(srv.port()) + "/"));
+      check(r.status == 0 && r.error.find("HTTPS") != std::string::npos, "https not supported: " + r.error);
+    }
+    // destroying client cancels pending requests
+    w = httpStart(hc, HttpRequest(pollEnd));
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    client.reset();
+    check(w->done && w->resp.error == HttpClient::CANCELLED, "pending request cancelled by destructor");
   }
 
   // reverse proxy headers
