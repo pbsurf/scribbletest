@@ -37,8 +37,8 @@ static int usage(const char* argv0)
       "  --strict             count MINOR render differences as failures\n"
       "  --sync <server>      run sync tests using whiteboard server <server>[:port]; 'local' to use a server\n"
       "                       running in this process (on a free port)\n"
-      "  --sync-relay=<mode>  'upgrade' (default for local server) to connect to relay via HTTP Upgrade on API\n"
-      "                       port, or 'port1' to use port + 1 (default for other servers)\n"
+      "  --sync-relay=<mode>  'http' (default for local server) to use HTTP relay on API port (via HttpClient),\n"
+      "                       or 'port1' for raw relay on port + 1 (default for other servers)\n"
       "  --perf               run performance test instead of regular tests\n"
       "  --redraw             run only redraw tests (partial vs. full redraw of app window at several UI scales);\n"
       "                       these also run after regular tests unless --only, --update, or --sync is given\n"
@@ -116,7 +116,7 @@ int main(int argc, char* argv[])
     StringRef arg(argv[ii]);
     if(arg == "--sync" && ii + 1 < argc)
       syncServer = argv[++ii];
-    else if(arg == "--sync-relay=upgrade" || arg == "--sync-relay=port1")
+    else if(arg == "--sync-relay=http" || arg == "--sync-relay=port1")
       syncRelay = argv[ii] + 13;
     else if(arg == "--out" && ii + 1 < argc)
       outPath = argv[++ii];
@@ -200,7 +200,7 @@ int main(int argc, char* argv[])
     localServerThread = std::thread([&](){ localServer->run(); });
     syncServer = "127.0.0.1:" + std::to_string(localServer->apiPort());
     if(syncRelay.empty())
-      syncRelay = "upgrade";
+      syncRelay = "http";
   }
 
   int res = 0;

@@ -443,6 +443,8 @@ void ScribbleTest::runAll(const std::string& syncServer)
     scribbleConfig->set("syncServer", syncServer.c_str());
     scribbleConfig->set("syncUser", "testuser1");
     syncSlave = new ScribbleTest(refPath, outPath);
+    if(!syncRelay.empty())
+      syncSlave->swbXML.first_child().append_attribute("relay").set_value(syncRelay.c_str());
     syncSlave->scribbleConfig->set("syncUser", "testuser2");
     syncSlave->scribbleConfig->set("syncServer", scribbleConfig->String("syncServer"));
     syncSlave->nFailed = 0;
@@ -1667,7 +1669,9 @@ void ScribbleTest::waitForSync()
   // wait until all items are sent and echoed back from server, then wait until slave has received all items (same number of byyes)
   // alternative, wait until master and slave stroke counts are equal?
   ScribbleSync* ss = scribbleDoc->scribbleSync;
-  while(ss->canSendHist() || ss->rcvdPos != ss->sentPos || ss->bytesRcvd > syncSlave->scribbleDoc->scribbleSync->bytesRcvd)
+  // w/ HTTP relay, a send is pending until response is received (and echo may arrive first), so check for unsent
+  //  history and pending send explicitly instead of just canSendHist()
+  while(ss->canSendHist() || ss->syncPending() || ss->bytesRcvd > syncSlave->scribbleDoc->scribbleSync->bytesRcvd)
     ScribbleApp::processEvents();
 }
 

@@ -260,7 +260,7 @@ void ScribbleTest::runServerTests()
         "create reply (attribute escaping, invalid/reserved keys dropped): " + body);
     std::string token = between(body, "token='", "'");
     check(token.size() == 32, "token");
-    const std::string relayAttr = " relay='http upgrade'/>";
+    const std::string relayAttr = " relay='http'/>";
     check(body.size() > relayAttr.size() && body.compare(body.size() - relayAttr.size(), relayAttr.size(), relayAttr) == 0
         && body.find("relay=") == body.rfind("relay="), "relay advertised (and not overridable): " + body);
     check(httpGet(port, "/v1/createswb?name=wb1", cookie).compare(0, 12, "HTTP/1.1 404") == 0, "duplicate create -> 404");
@@ -360,35 +360,6 @@ void ScribbleTest::runServerTests()
     a.send(startCmd("t1", "testdoc", "SCRIBBLE_SYNC_TEST", "1"));
     check(a.readUntil(connectMsg("t1", "1")) == connectMsg("t1", "1"), "test token");
     check(httpBody(httpGet(srv.port(), "/v1/debug")).find("testdoc") != std::string::npos, "/v1/debug");
-
-    // relay via HTTP Upgrade on API port; /start sent w/o waiting for 101
-    section = "upgrade";
-    const std::string upgradeReq = "GET /v1/swb HTTP/1.1\r\nHost: x\r\nUpgrade: swb\r\nConnection: Upgrade\r\n\r\n";
-    const std::string resp101 = "HTTP/1.1 101 Switching Protocols\r\nUpgrade: swb\r\nConnection: Upgrade\r\n\r\n";
-    TestSock u(srv.port());
-    u.send(upgradeReq + startCmd("t2", "testdoc", "SCRIBBLE_SYNC_TEST", "2"));
-    check(u.readUntil(connectMsg("t2", "2")) == resp101 + connectMsg("t1", "1") + connectMsg("t2", "2"), "upgrade + history");
-    check(a.readUntil(connectMsg("t2", "2")) == connectMsg("t2", "2"), "upgraded client visible to port + 1 client");
-    // /ping is a no-op (no reply)
-    u.send("/ping\n" + dataCmd("viaupgrade") + "/ping\r\n");
-    check(a.readUntil("viaupgrade") == "viaupgrade", "data from upgraded client");
-    check(u.readUntil("viaupgrade") == "viaupgrade", "echo to upgraded client (/ping ignored)");
-    a.send(dataCmd("viaport1"));
-    check(u.readUntil("viaport1") == "viaport1", "data to upgraded client");
-    a.readUntil("viaport1");  // echo
-    u.send("/end\n");
-    check(u.waitClosed(), "/end on upgraded connection");
-    check(a.readUntil(disconnectMsg("t2")) == disconnectMsg("t2"), "upgraded client disconnect");
-    // separate 101 and /start
-    TestSock u2(srv.port());
-    u2.send("GET /v1/swb?x=1 HTTP/1.1\r\nupgrade:  h2c, SWB \r\nConnection: Upgrade\r\n\r\n");
-    check(u2.readUntil("\r\n\r\n") == resp101, "101 (Upgrade header w/ multiple protocols)");
-    u2.send(startCmd("t3", "testdoc", "SCRIBBLE_SYNC_TEST", "3"));
-    check(!u2.readUntil(connectMsg("t3", "3")).empty(), "/start after 101");
-    check(httpGet(srv.port(), "/v1/swb").compare(0, 12, "HTTP/1.1 426") == 0, "/v1/swb w/o Upgrade -> 426");
-    TestSock u3(srv.port());
-    u3.send("GET /v1/swb HTTP/1.1\r\nUpgrade: websocket\r\nConnection: Upgrade\r\n\r\n");
-    check(u3.waitClosed() && u3.buf.compare(0, 12, "HTTP/1.1 426") == 0, "unsupported Upgrade -> 426");
   }
 
   // HTTP relay (long polling)
@@ -646,21 +617,28 @@ void ScribbleTest::runServerTests()
     check(httpGet(port, "/v1/openswb?name=p1", cookie, "X-Remote-User: bob\r\n").compare(0, 12, "HTTP/1.1 403") == 0,
         "session user != proxy user -> 403");
     check(httpGet(port, "/v1/openswb?name=p1", cookie).compare(0, 12, "HTTP/1.1 200") == 0, "no proxy user -> session user");
-    // relay via upgrade: /start user must match proxy user; client address from proxy headers
-    const std::string upgradeReq = "GET /v1/swb HTTP/1.1\r\nUpgrade: swb\r\nConnection: Upgrade\r\n";
-    TestSock u(port);
-    u.send(upgradeReq + alice + "X-Forwarded-For: 10.9.9.9, 203.0.113.7\r\n\r\n" + startCmd("alice", "p1", token, "1"));
-    check(!u.readUntil(connectMsg("alice", "1")).empty(), "upgrade w/ matching proxy user");
-    TestSock u2(port);
-    u2.send(upgradeReq + "X-Remote-User: bob\r\nX-Real-IP: 198.51.100.2\r\n\r\n"
-        + startCmd("t1", "testdoc", "SCRIBBLE_SYNC_TEST", "2"));
-    check(!u2.readUntil("accessdenied").empty() && u2.waitClosed(), "/start user != proxy user rejected (even w/ test token)");
-    TestSock u3(port);
-    u3.send(upgradeReq + "X-Real-IP: 198.51.100.3\r\nX-Forwarded-For: 203.0.113.9\r\n\r\n"
-        + startCmd("t3", "testdoc", "SCRIBBLE_SYNC_TEST", "3"));
-    check(!u3.readUntil(connectMsg("t3", "3")).empty(), "upgrade w/o proxy user");
+    // HTTP relay: start user must match proxy user; client address from proxy headers
+    auto post = [&](const std::string& path, const std::string& headers) {
+      TestSock ps(port);
+      ps.send("POST " + path + " HTTP/1.1\r\nContent-Length: 0\r\nConnection: close\r\n" + headers + "\r\n");
+      ps.waitClosed();
+      return ps.buf;
+    };
+    std::string resp1 = post("/v1/swb/start?document=p1&user=alice&uuid=1&token=" + token,
+        alice + "X-Forwarded-For: 10.9.9.9, 203.0.113.7\r\n");
+    std::string aid = httpBody(resp1);
+    check(resp1.compare(0, 12, "HTTP/1.1 200") == 0, "start w/ matching proxy user");
+    std::string resp2 = post("/v1/swb/start?document=testdoc&user=t1&uuid=2&token=SCRIBBLE_SYNC_TEST",
+        "X-Remote-User: bob\r\nX-Real-IP: 198.51.100.2\r\n");
+    check(resp2.compare(0, 12, "HTTP/1.1 403") == 0 && httpBody(resp2).find("accessdenied") != std::string::npos,
+        "start user != proxy user rejected (even w/ test token)");
+    check(post("/v1/swb/start?document=testdoc&user=t3&uuid=3&token=SCRIBBLE_SYNC_TEST",
+        "X-Real-IP: 198.51.100.3\r\nX-Forwarded-For: 203.0.113.9\r\n").compare(0, 12, "HTTP/1.1 200") == 0,
+        "start w/o proxy user");
+    check(post("/v1/swb/end?id=" + aid, "X-Remote-User: bob\r\n").compare(0, 12, "HTTP/1.1 403") == 0,
+        "request for other user's session rejected");
     std::string dbg = httpBody(httpGet(port, "/v1/debug"));
-    check(dbg.find("alice@203.0.113.7") != std::string::npos && dbg.find("t3@198.51.100.3") != std::string::npos,
+    check(dbg.find("alice@203.0.113.7 (HTTP)") != std::string::npos && dbg.find("t3@198.51.100.3 (HTTP)") != std::string::npos,
         "client address from X-Forwarded-For (last entry) and X-Real-IP: " + dbg);
   }
 
@@ -682,9 +660,10 @@ void ScribbleTest::runServerTests()
     url.host = hostport;
     url.path = "clientwb";
     if(check(app->syncSignIn(url), "syncSignIn")) {
-      std::string reply = app->syncAPICall(url, "/v1/createswb?name=clientwb&title=Test");
-      check(reply.compare(0, 12, "HTTP/1.1 200") == 0 && reply.find("<swb name='clientwb' title='Test' user='alice' token='")
-          != std::string::npos && reply.find("relay='http upgrade'") != std::string::npos, "syncAPICall createswb: " + httpBody(reply));
+      HttpResponse reply = app->syncAPICall(url, "/v1/createswb?name=clientwb&title=Test");
+      std::string body = bodyStr(reply);
+      check(reply.status == 200 && body.find("<swb name='clientwb' title='Test' user='alice' token='") != std::string::npos
+          && body.find("relay='http'") != std::string::npos, "syncAPICall createswb: " + body);
     }
     cfg->set("syncServer", prevServer.c_str());
     cfg->set("syncUser", prevUser.c_str());
