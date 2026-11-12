@@ -118,6 +118,19 @@ struct TestSock
   std::string drain(double t = 0.1) { while(poll(t)) {} std::string res; res.swap(buf); return res; }
 };
 
+// read one response w/ Content-Length body
+std::string readResponse(TestSock& s, double timeout = 3)
+{
+  std::string hdr = s.readUntil("\r\n\r\n", timeout);
+  if(hdr.empty()) return "";
+  size_t cl = hdr.find("Content-Length: ");
+  size_t len = cl == std::string::npos ? 0 : size_t(atoll(hdr.c_str() + cl + 16));
+  if(s.readBytes(len) < len) return "";
+  std::string body = s.buf.substr(0, len);
+  s.buf.erase(0, len);
+  return hdr + body;
+}
+
 // headers: extra headers, each terminated by \r\n
 std::string httpGet(int port, const std::string& path, const std::string& cookie = "", const std::string& headers = "")
 {
@@ -127,6 +140,15 @@ std::string httpGet(int port, const std::string& path, const std::string& cookie
   s.send(req + "\r\n");
   s.waitClosed();
   return s.buf;
+}
+
+// request on persistent connection; returns complete response (header and body) or empty string on timeout
+std::string httpRequest(TestSock& s, const std::string& method, const std::string& path, const std::string& body = "",
+    double timeout = 3)
+{
+  s.send(method + " " + path + " HTTP/1.1\r\nHost: localhost\r\n"
+      + (method == "POST" ? "Content-Length: " + std::to_string(body.size()) + "\r\n" : "") + "\r\n" + body);
+  return readResponse(s, timeout);
 }
 
 std::string httpBody(const std::string& resp)
@@ -196,8 +218,9 @@ void ScribbleTest::runServerTests()
         "create reply (attribute escaping, invalid/reserved keys dropped): " + body);
     std::string token = between(body, "token='", "'");
     check(token.size() == 32, "token");
-    check(body.size() > 18 && body.compare(body.size() - 18, 18, " relay='upgrade'/>") == 0
-        && body.find("relay=") == body.rfind("relay="), "relay='upgrade' advertised (and not overridable)");
+    const std::string relayAttr = " relay='http upgrade'/>";
+    check(body.size() > relayAttr.size() && body.compare(body.size() - relayAttr.size(), relayAttr.size(), relayAttr) == 0
+        && body.find("relay=") == body.rfind("relay="), "relay advertised (and not overridable): " + body);
     check(httpGet(port, "/v1/createswb?name=wb1", cookie).compare(0, 12, "HTTP/1.1 404") == 0, "duplicate create -> 404");
     std::string cookie2 = between(httpGet(port, "/v1/auth?user=bob&timestamp=1&signature=x"), "Set-Cookie: session=", "\r;");
     body = httpBody(httpGet(port, "/v1/openswb?name=wb1", cookie2));
@@ -326,6 +349,136 @@ void ScribbleTest::runServerTests()
     check(u3.waitClosed() && u3.buf.compare(0, 12, "HTTP/1.1 426") == 0, "unsupported Upgrade -> 426");
   }
 
+  // HTTP relay (long polling)
+  {
+    section = "HTTP relay";
+    SWBServerOptions opts;
+    opts.pollTimeout = 1;
+    opts.pollClientTimeout = 1.5;
+    TestServer srv(opts);
+    if(!check(srv.ok, "server start")) goto done;
+    int port = srv.port();
+    auto session = [&](const std::string& user) {
+      std::string resp = httpGet(port, "/v1/auth?user=" + user);
+      return between(resp, "Set-Cookie: session=", "\r;");
+    };
+    std::string acookie = session("alice"), bcookie = session("bob"), ccookie = session("carol");
+    std::string atoken = between(httpBody(httpGet(port, "/v1/createswb?name=hw", acookie)), "token='", "'");
+    std::string btoken = between(httpBody(httpGet(port, "/v1/openswb?name=hw", bcookie)), "token='", "'");
+    std::string ctoken = between(httpBody(httpGet(port, "/v1/openswb?name=hw", ccookie)), "token='", "'");
+    auto status = [](const std::string& resp) { return resp.size() >= 12 ? resp.substr(9, 3) : std::string("---"); };
+
+    TestSock h(port);  // alice - single persistent connection for all requests
+    std::string resp = httpRequest(h, "POST", "/v1/swb/start?document=hw&user=alice&token=" + atoken + "&uuid=1");
+    std::string id = httpBody(resp);
+    check(status(resp) == "200" && id.size() == 20, "start: " + resp);
+    check(status(httpRequest(h, "POST", "/v1/swb/start?document=hw&user=alice&token=bad&uuid=1")) == "403"
+        && !h.eof, "start w/ bad token -> 403 (connection kept)");
+    check(status(httpRequest(h, "GET", "/v1/swb/start?document=hw&user=alice&token=" + atoken)) == "405", "GET start -> 405");
+    std::string hist = connectMsg("alice", "1");
+    check(httpBody(httpRequest(h, "GET", "/v1/swb/poll?id=" + id + "&offset=0")) == hist, "poll returns history");
+    check(status(httpRequest(h, "POST", "/v1/swb/send?id=" + id + "&seq=1", "hello")) == "200", "send");
+    hist += "hello";
+    check(httpBody(httpRequest(h, "GET", "/v1/swb/poll?id=" + id + "&offset=" + std::to_string(hist.size() - 5))) == "hello",
+        "poll from offset (echo)");
+    // raw relay client sees HTTP client's data and vice versa
+    TestSock b(port + 1);
+    b.send(startCmd("bob", "hw", btoken, "2"));
+    hist += connectMsg("bob", "2");
+    check(b.readUntil(connectMsg("bob", "2")) == hist, "raw client gets history incl. HTTP client data");
+    // pending poll is answered when data arrives
+    h.send("GET /v1/swb/poll?id=" + id + "&offset=" + std::to_string(hist.size()) + " HTTP/1.1\r\nHost: x\r\n\r\n");
+    std::this_thread::sleep_for(std::chrono::milliseconds(200));
+    check(h.buf.empty(), "poll waits for data");
+    b.send(dataCmd("frombob"));
+    hist += "frombob";
+    check(httpBody(readResponse(h)) == "frombob", "pending poll answered on new data");
+    check(b.readUntil("frombob") == "frombob", "raw echo");
+    // poll timeout -> empty response
+    Timestamp tp = mSecSinceEpoch();
+    resp = httpRequest(h, "GET", "/v1/swb/poll?id=" + id + "&offset=" + std::to_string(hist.size()));
+    check(status(resp) == "200" && httpBody(resp).empty() && mSecSinceEpoch() - tp > 800, "poll timeout -> empty 200");
+    // duplicate seq ignored
+    httpRequest(h, "POST", "/v1/swb/send?id=" + id + "&seq=1", "dup");
+    httpRequest(h, "POST", "/v1/swb/send?id=" + id + "&seq=2", "after");
+    hist += "after";
+    check(b.readUntil("after") == "after", "duplicate seq ignored");
+    check(status(httpRequest(h, "GET", "/v1/swb/poll?id=" + id + "&offset=" + std::to_string(hist.size() + 1))) == "400",
+        "offset beyond history -> 400");
+    check(status(httpRequest(h, "GET", "/v1/swb/poll?id=nosuch&offset=0")) == "404", "unknown id -> 404");
+    // pipelined requests, Expect: 100-continue
+    h.send("POST /v1/swb/send?id=" + id + "&seq=3 HTTP/1.1\r\nContent-Length: 2\r\n\r\np1"
+        "GET /v1/swb/poll?id=" + id + "&offset=" + std::to_string(hist.size()) + " HTTP/1.1\r\n\r\n");
+    hist += "p1";
+    check(status(readResponse(h)) == "200" && httpBody(readResponse(h)) == "p1", "pipelined requests");
+    h.send("POST /v1/swb/send?id=" + id + "&seq=4 HTTP/1.1\r\nContent-Length: 2\r\nExpect: 100-continue\r\n\r\n");
+    check(h.readUntil("\r\n\r\n") == "HTTP/1.1 100 Continue\r\n\r\n", "100 Continue");
+    h.send("p2");
+    hist += "p2";
+    check(status(readResponse(h)) == "200" && b.readUntil("p2") == "p1p2", "body after 100 Continue");
+    // /info lists HTTP clients
+    TestSock info(port + 1);
+    info.send("/info?document=hw\n");
+    check(info.readUntil("alice").find("bob") != std::string::npos, "/info includes HTTP client");
+    // same user connecting via raw relay kicks HTTP client (w/ pending poll)
+    h.send("GET /v1/swb/poll?id=" + id + "&offset=" + std::to_string(hist.size()) + " HTTP/1.1\r\n\r\n");
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    TestSock a2(port + 1);
+    a2.send(startCmd("alice", "hw", atoken, "4"));
+    resp = readResponse(h);
+    check(status(resp) == "403" && httpBody(resp).find("logged in from another location") != std::string::npos,
+        "HTTP client kicked: " + resp);
+    // kicked client's disconnect is broadcast before new client's connect (same as for raw relay)
+    check(b.readUntil(connectMsg("alice", "4")) == disconnectMsg("alice") + connectMsg("alice", "4"), "kick broadcast");
+    // HTTP client kicks raw client
+    std::string id2 = httpBody(httpRequest(h, "POST", "/v1/swb/start?document=hw&user=alice&token=" + atoken + "&uuid=5"));
+    check(!a2.readUntil("logged in from another location").empty() && a2.waitClosed(), "raw client kicked by HTTP client");
+    check(b.readUntil(connectMsg("alice", "5")) == disconnectMsg("alice") + connectMsg("alice", "5"), "kick by HTTP client broadcast");
+    // end
+    check(status(httpRequest(h, "POST", "/v1/swb/end?id=" + id2)) == "200", "end");
+    check(b.readUntil(disconnectMsg("alice")) == disconnectMsg("alice"), "end -> disconnect broadcast");
+    check(status(httpRequest(h, "GET", "/v1/swb/poll?id=" + id2 + "&offset=0")) == "404", "poll after end -> 404");
+    // HTTP client stops polling -> disconnected
+    TestSock hc(port);
+    std::string cid = httpBody(httpRequest(hc, "POST", "/v1/swb/start?document=hw&user=carol&token=" + ctoken + "&uuid=3"));
+    check(b.readUntil(connectMsg("carol", "3")) == connectMsg("carol", "3"), "HTTP client connect broadcast");
+    check(b.readUntil(disconnectMsg("carol"), 4) == disconnectMsg("carol"), "HTTP client timed out");
+    check(status(httpRequest(hc, "GET", "/v1/swb/poll?id=" + cid + "&offset=0")) == "404", "expired session -> 404");
+    // large history is returned in multiple polls (max 4 MB per response)
+    {
+      std::string big5(5 << 20, 'y');
+      for(size_t ii = 0; ii < big5.size(); ii += 1009) big5[ii] = char('a' + ii % 26);
+      b.send(dataCmd(big5));
+      b.readBytes(big5.size());
+      b.buf.clear();
+      TestSock hd(port);
+      std::string dtoken = between(httpBody(httpGet(port, "/v1/openswb?name=hw", session("dave"))), "token='", "'");
+      std::string did = httpBody(httpRequest(hd, "POST", "/v1/swb/start?document=hw&user=dave&token=" + dtoken));
+      std::string full = httpBody(httpRequest(hd, "GET", "/v1/swb/poll?id=" + did + "&offset=0", "", 10));
+      check(full.size() == (4 << 20), fstring("first poll limited to 4 MB (%d)", int(full.size())));
+      full += httpBody(httpRequest(hd, "GET", "/v1/swb/poll?id=" + did + "&offset=" + std::to_string(full.size()), "", 10));
+      size_t p5 = full.find(big5.substr(0, 64));
+      check(p5 != std::string::npos && full.compare(p5, big5.size(), big5) == 0, "large history across polls");
+      httpRequest(hd, "POST", "/v1/swb/end?id=" + did);
+      b.readUntil(disconnectMsg("dave"));
+    }
+    // request limits; Connection: close honored
+    TestSock big(port);
+    big.send("POST /v1/swb/send?id=x HTTP/1.1\r\nContent-Length: 999999999999\r\n\r\n");
+    check(big.waitClosed() && status(big.buf) == "413", "body too large -> 413");
+    TestSock chunked(port);
+    chunked.send("POST /v1/swb/send?id=x HTTP/1.1\r\nTransfer-Encoding: chunked\r\n\r\n");
+    check(chunked.waitClosed() && status(chunked.buf) == "411", "chunked body -> 411");
+    TestSock cl(port);
+    cl.send("GET /v1/swb/poll?id=x HTTP/1.1\r\nConnection: close\r\n\r\n");
+    check(cl.waitClosed() && status(cl.buf) == "404", "Connection: close");
+    // whiteboard deleted after last (HTTP) client leaves
+    b.send("/end\n");
+    b.waitClosed();
+    std::this_thread::sleep_for(std::chrono::milliseconds(300));
+    check(httpGet(port, "/v1/openswb?name=hw", acookie).compare(0, 12, "HTTP/1.1 404") == 0, "whiteboard deleted");
+  }
+
   // reverse proxy headers
   {
     section = "trustProxy";
@@ -391,7 +544,7 @@ void ScribbleTest::runServerTests()
     if(check(app->syncSignIn(url), "syncSignIn")) {
       std::string reply = app->syncAPICall(url, "/v1/createswb?name=clientwb&title=Test");
       check(reply.compare(0, 12, "HTTP/1.1 200") == 0 && reply.find("<swb name='clientwb' title='Test' user='alice' token='")
-          != std::string::npos && reply.find("relay='upgrade'") != std::string::npos, "syncAPICall createswb: " + httpBody(reply));
+          != std::string::npos && reply.find("relay='http upgrade'") != std::string::npos, "syncAPICall createswb: " + httpBody(reply));
     }
     cfg->set("syncServer", prevServer.c_str());
     cfg->set("syncUser", prevUser.c_str());
