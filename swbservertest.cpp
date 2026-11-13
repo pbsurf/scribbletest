@@ -385,6 +385,55 @@ void ScribbleTest::runServerTests()
     check(c.readUntil(connectMsg("alice", "13")) == connectMsg("alice", "13"), "replaced whiteboard has empty history");
   }
 
+  // user names w/ special characters: URL encoded in requests, XML escaped in messages
+  {
+    section = "names";
+    SWBServerOptions opts;
+    opts.delDelay = 0;
+    TestServer srv(opts);
+    if(!check(srv.ok, "server start")) goto done;
+    int port = srv.port();
+    const std::string name = "O'Brien & <Co> \xC3\xA9";
+    std::string ename = urlEncode(name.c_str());
+    std::string cookie = between(httpGet(port, "/v1/auth?user=" + ename + "&timestamp=1&signature=x"),
+        "Set-Cookie: session=", "\r;");
+    std::string body = httpBody(httpGet(port, "/v1/createswb?name=names", cookie));
+    std::string token = between(body, "token='", "'");
+    check(body.find("user='O&apos;Brien &amp; &lt;Co&gt; \xC3\xA9'") != std::string::npos, "user in reply: " + body);
+    TestSock a(port + 1);
+    a.send(startCmd(ename, "names", token, "1%262"));  // uuid "1&2"
+    std::string esc = "O&apos;Brien &amp; &lt;Co&gt; \xC3\xA9";
+    std::string expect = "<undo><connect name='" + esc + "' uuid='1&amp;2'/></undo>\n";
+    std::string msg = a.readUntil("</undo>\n");
+    check(msg == expect, "connect message escaped: " + msg);
+    pugi::xml_document doc;
+    check(doc.load_string(expect.c_str()) && doc.child("undo").child("connect").attribute("name").as_string() == name,
+        "connect message parses to original name");
+  }
+
+  // whiteboard server on its own thread (as hosted by Write)
+  {
+    section = "SWBServerThread";
+    SWBServerOptions opts;
+    opts.host = "127.0.0.1";
+    opts.port = 0;
+    opts.logLevel = 0;
+    std::shared_ptr<SWBServerThread> st1 = SWBServerThread::start(opts);
+    if(!check(st1 && st1->apiPort() > 0, "start")) goto done;
+    int port1 = st1->apiPort();
+    check(httpGet(port1, "/v1/auth?user=a&timestamp=1&signature=x").compare(0, 12, "HTTP/1.1 200") == 0, "server running");
+    opts.port = port1;  // in use
+    std::shared_ptr<SWBServerThread> st2 = SWBServerThread::start(opts);
+    check(st2 && st2->apiPort() > 0 && st2->apiPort() != port1, "falls back to free port if port in use");
+    st1.reset();
+    TestSock s(port1);
+    check(s.fd < 0 || (s.send("GET / HTTP/1.1\r\n\r\n"), s.waitClosed() && s.buf.empty()), "stopped when destroyed");
+    std::string lan = swbLanAddress();
+    details += "server: LAN address: " + (lan.empty() ? std::string("(unknown)") : lan) + "\n";
+    check(lan.empty() || (lan.find_first_not_of("0123456789.") == std::string::npos && lan.compare(0, 4, "127.") != 0),
+        "LAN address: " + lan);
+  }
+
   // test token and debug page w/ enableTest
   {
     section = "enableTest";
@@ -807,6 +856,28 @@ void ScribbleTest::runServerTests()
       }
       app->syncAuthUser.clear();
       app->syncAuthPass.clear();
+    }
+    // user name w/ special characters
+    url.host = hostport;
+    url.user = "O'Brien & Co";
+    url.pass = "x";
+    if(check(app->syncSignIn(url), "syncSignIn w/ special characters in name")) {
+      HttpResponse reply = app->syncAPICall(url, "/v1/openswb?name=clientwb");
+      check(reply.status == 200 && bodyStr(reply).find("user='O&apos;Brien &amp; Co'") != std::string::npos,
+          "user name URL encoded: " + bodyStr(reply));
+    }
+    // server for whiteboard hosted on this device: shared while in use, stopped when no longer used
+    {
+      std::shared_ptr<SWBServerThread> h1 = app->hostWhiteboardServer();
+      std::shared_ptr<SWBServerThread> h2 = app->hostWhiteboardServer();
+      if(check(h1 && h1 == h2, "hosted server shared")) {
+        int hport = h1->apiPort();
+        check(httpGet(hport, "/v1/auth?user=a&timestamp=1&signature=x").compare(0, 12, "HTTP/1.1 200") == 0,
+            "hosted server running on port " + std::to_string(hport));
+        h1.reset();
+        h2.reset();
+        check(app->hostedServer.expired(), "hosted server stopped when unused");
+      }
     }
     cfg->set("syncServer", prevServer.c_str());
     cfg->set("syncUser", prevUser.c_str());
