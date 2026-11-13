@@ -9,6 +9,7 @@
 #include "swbserver.h"
 #include "scribblesync.h"
 #include "authproxy.h"
+#include "syncdialog.h"
 #include "ulib/unet.h"
 #include "ugui/platforms/platformhttp.h"
 #include "ulib/md5.h"
@@ -233,6 +234,10 @@ void ScribbleTest::runServerTests()
   int nchecks = 0;
   std::string details;
   std::string section;
+  // modal dialogs would block forever in headless tests: record them and cancel unless a test handles them
+  int nDialogs = 0;
+  std::function<int(Dialog*)> dialogFn;
+  Application::execDialogHook = [&](Dialog* d){ ++nDialogs; return dialogFn ? dialogFn(d) : int(Dialog::CANCELLED); };
   auto check = [&](bool ok, const std::string& what) {
     ++nchecks;
     if(!ok) {
@@ -254,6 +259,9 @@ void ScribbleTest::runServerTests()
     std::string resp = httpGet(port, "/v1/auth?user=alice&timestamp=1&signature=x");
     std::string cookie = between(resp, "Set-Cookie: session=", "\r;");
     check(resp.compare(0, 12, "HTTP/1.1 200") == 0 && !cookie.empty(), "anonymous auth");
+    std::string probe = httpGet(port, "/v1/auth");
+    check(probe.compare(0, 12, "HTTP/1.1 200") == 0 && httpBody(probe) == "<auth none='1'/>"
+        && probe.find("Set-Cookie") == std::string::npos, "/v1/auth w/o user: no password needed, no session: " + probe);
     check(httpGet(port, "/v1/createswb?name=wb1").compare(0, 12, "HTTP/1.1 403") == 0, "no session -> 403");
     check(httpGet(port, "/v1/createswb?name=wb1", "bogus").compare(0, 12, "HTTP/1.1 403") == 0, "bad session -> 403");
     check(httpGet(port, "/v1/openswb?name=wb1", cookie).compare(0, 12, "HTTP/1.1 404") == 0, "open nonexistent -> 404");
@@ -417,7 +425,7 @@ void ScribbleTest::runServerTests()
     SWBServerOptions opts;
     opts.host = "127.0.0.1";
     opts.port = 0;
-    opts.logLevel = 0;
+    opts.logLevel = -1;  // no output (port in use error is expected)
     std::shared_ptr<SWBServerThread> st1 = SWBServerThread::start(opts);
     if(!check(st1 && st1->apiPort() > 0, "start")) goto done;
     int port1 = st1->apiPort();
@@ -854,8 +862,54 @@ void ScribbleTest::runServerTests()
         app->syncAuthPass = "wrong";
         check(app->syncAPICall(url, "/v1/openswb?name=authwb").status == 401, "syncAPICall w/ wrong password -> 401");
       }
+      // w/o credentials in link: attempt w/o password (w/ syncUser) gets 401 from proxy, so login dialog w/ password
+      //  field is shown, w/ name prefilled
+      cfg->set("syncUser", "carol");
+      url = ScribbleApp::parseWhiteboard("http://127.0.0.1:" + std::to_string(proxy.port()) + "/authwb");
+      std::string dlgUser;
+      bool dlgPass = false;
+      dialogFn = [&](Dialog* d){
+        SyncLoginDialog* login = static_cast<SyncLoginDialog*>(d);
+        dlgUser = login->userEdit->text();
+        dlgPass = login->passEdit->isDisplayed();
+        login->passEdit->setText("secret");
+        return int(Dialog::ACCEPTED);
+      };
+      nDialogs = 0;
+      bool ok = app->syncSignIn(url);
+      dialogFn = NULL;
+      check(ok && nDialogs == 1 && dlgUser == "carol" && dlgPass, fstring("password asked for if needed (%d dialogs): ",
+          nDialogs) + dlgUser);
+      check(app->syncAPICall(url, "/v1/openswb?name=authwb").status == 200, "signed in after password entered");
       app->syncAuthUser.clear();
       app->syncAuthPass.clear();
+      cfg->set("syncUser", "alice");
+    }
+    // joining server w/o authentication (e.g. whiteboard hosted by another Write): no password needed
+    {
+      url = ScribbleApp::parseWhiteboard("http://" + hostport + "/clientwb");  // not syncServer, so no saved pw
+      nDialogs = 0;
+      check(app->syncSignIn(url) && nDialogs == 0, fstring("syncSignIn w/o password, name from syncUser (%d dialogs)",
+          nDialogs));
+      check(bodyStr(app->syncAPICall(url, "/v1/openswb?name=clientwb")).find("user='alice'") != std::string::npos,
+          "joined as syncUser");
+      // no name: probe shows that only a name is needed, so login dialog w/o password field
+      cfg->set("syncUser", "");
+      bool dlgPass = true;
+      dialogFn = [&](Dialog* d){
+        SyncLoginDialog* login = static_cast<SyncLoginDialog*>(d);
+        dlgPass = login->passEdit->isDisplayed();
+        login->userEdit->setText("erin");
+        return int(Dialog::ACCEPTED);
+      };
+      nDialogs = 0;
+      bool ok = app->syncSignIn(url);
+      dialogFn = NULL;
+      check(ok && nDialogs == 1 && !dlgPass, fstring("name asked for w/o password (%d dialogs)", nDialogs));
+      check(std::string(cfg->String("syncUser", "")) == "erin"
+          && bodyStr(app->syncAPICall(url, "/v1/openswb?name=clientwb")).find("user='erin'") != std::string::npos,
+          "name saved as syncUser and used");
+      cfg->set("syncUser", "alice");
     }
     // user name w/ special characters
     url.host = hostport;
@@ -886,6 +940,7 @@ void ScribbleTest::runServerTests()
   }
 
 done:
+  Application::execDialogHook = NULL;
   resultStr = details + fstring("server tests: %d checks completed in %d ms: %d failed", nchecks,
       int(mSecSinceEpoch() - t0), nFailed);
 }
