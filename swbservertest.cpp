@@ -7,6 +7,7 @@
 #include "scribbleapp.h"
 #include "scribbleconfig.h"
 #include "swbserver.h"
+#include "scribblesync.h"
 #include "ulib/unet.h"
 #include "ugui/platforms/platformhttp.h"
 #include "ulib/md5.h"
@@ -642,6 +643,35 @@ void ScribbleTest::runServerTests()
         "client address from X-Forwarded-For (last entry) and X-Real-IP: " + dbg);
   }
 
+  // whiteboard links
+  {
+    section = "links";
+    auto linkStr = [](const Url& u) { return u.user + "|" + u.pass + "|" + u.host + "|" + u.path + "|" + u.query; };
+    struct { const char* link; const char* expect; } cases[] = {
+      {"swb://u:p@host:7000/wb1", "u|p|host:7000|wb1|"},
+      {"u@host/wb1?rxonly=1", "u||host|wb1|rxonly=1"},
+      {"[::1]:7000/wb1", "||[::1]:7000|wb1|"},
+      {"https://example.com/wb1", "||https://example.com|wb1|"},
+      {"HTTPS://u:p@example.com:8443/swb/wb1?a=b#frag", "u|p|https://example.com:8443/swb|wb1|a=b"},
+      {"http://example.com/a@b/wb1", "||http://example.com/a@b|wb1|"},
+      {"https://example.com/", "||https://example.com||"},
+      {"https://example.com", "||https://example.com||"},
+    };
+    for(auto& c : cases) {
+      std::string res = linkStr(ScribbleApp::parseWhiteboard(c.link));
+      check(res == c.expect, std::string("parseWhiteboard ") + c.link + ": " + res);
+    }
+    int p;
+    std::string h = ScribbleSync::splitHostPort("https://example.com/swb", &p);
+    check(h == "example.com" && p == 443, "splitHostPort https: " + h + fstring(":%d", p));
+    h = ScribbleSync::splitHostPort("http://[::1]:8000/swb", &p);
+    check(h == "::1" && p == 8000, "splitHostPort http: " + h + fstring(":%d", p));
+    h = ScribbleSync::splitHostPort("host", &p);
+    check(h == "host" && p == 7000, "splitHostPort host: " + h + fstring(":%d", p));
+    check(ScribbleSync::httpBaseUrl("https://example.com/swb/") == "https://example.com/swb", "httpBaseUrl https");
+    check(ScribbleSync::httpBaseUrl("host") == "http://host:7000", "httpBaseUrl host");
+  }
+
   // Write's client code: sign in and create whiteboard
   {
     section = "client";
@@ -664,6 +694,16 @@ void ScribbleTest::runServerTests()
       std::string body = bodyStr(reply);
       check(reply.status == 200 && body.find("<swb name='clientwb' title='Test' user='alice' token='") != std::string::npos
           && body.find("relay='http'") != std::string::npos, "syncAPICall createswb: " + body);
+    }
+    // whiteboard link as URL (http://) w/ credentials in link
+    url = ScribbleApp::parseWhiteboard("http://bob:pw@" + hostport + "/clientwb");
+    check(url.host == "http://" + hostport && url.path == "clientwb" && url.user == "bob" && url.pass == "pw",
+        "parseWhiteboard http URL: " + url.host + " " + url.path + " " + url.user + " " + url.pass);
+    if(check(app->syncSignIn(url), "syncSignIn w/ http:// link")) {
+      HttpResponse reply = app->syncAPICall(url, "/v1/openswb?name=clientwb");
+      std::string body = bodyStr(reply);
+      check(reply.status == 200 && body.find("<swb name='clientwb' title='Test' user='bob' token='") != std::string::npos,
+          "syncAPICall openswb w/ http:// link: " + body);
     }
     cfg->set("syncServer", prevServer.c_str());
     cfg->set("syncUser", prevUser.c_str());
