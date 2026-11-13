@@ -245,7 +245,9 @@ void ScribbleTest::runServerTests()
   // HTTP API (no authentication: any user accepted)
   {
     section = "API";
-    TestServer srv(SWBServerOptions{});
+    SWBServerOptions apiopts;
+    apiopts.delDelay = 0;
+    TestServer srv(apiopts);
     if(!check(srv.ok, "server start")) goto done;
     int port = srv.port();
     std::string resp = httpGet(port, "/v1/auth?user=alice&timestamp=1&signature=x");
@@ -350,6 +352,38 @@ void ScribbleTest::runServerTests()
     check(httpGet(port, "/v1/openswb?name=wb1", cookie).compare(0, 12, "HTTP/1.1 404") == 0, "whiteboard deleted");
   }
 
+  // default delDelay: whiteboard is kept after last client leaves, but can be replaced by createswb
+  {
+    section = "delDelay";
+    TestServer srv(SWBServerOptions{});
+    if(!check(srv.ok, "server start")) goto done;
+    int port = srv.port();
+    std::string cookie = between(httpGet(port, "/v1/auth?user=alice&timestamp=1&signature=x"), "Set-Cookie: session=", "\r;");
+    std::string token = between(httpBody(httpGet(port, "/v1/createswb?name=wb1", cookie)), "token='", "'");
+    TestSock a(port + 1);
+    a.send(startCmd("alice", "wb1", token, "11"));
+    a.readUntil(connectMsg("alice", "11"));
+    a.send(dataCmd("abc"));
+    a.readUntil("abc");
+    a.send("/end\n");
+    a.waitClosed();
+    std::this_thread::sleep_for(std::chrono::milliseconds(300));
+    std::string body = httpBody(httpGet(port, "/v1/openswb?name=wb1", cookie));
+    check(between(body, "token='", "'") == token, "whiteboard kept after last client leaves: " + body);
+    TestSock b(port + 1);
+    b.send(startCmd("alice", "wb1", token, "12"));
+    check(b.readUntil(connectMsg("alice", "12")) == connectMsg("alice", "11") + "abc" + connectMsg("alice", "12"), "reconnect to kept whiteboard gets history (no disconnect msg for last client)");
+    b.send("/end\n");
+    b.waitClosed();
+    std::this_thread::sleep_for(std::chrono::milliseconds(300));
+    body = httpBody(httpGet(port, "/v1/createswb?name=wb1", cookie));
+    std::string token2 = between(body, "token='", "'");
+    check(token2.size() == 32 && token2 != token, "createswb replaces unused whiteboard: " + body);
+    TestSock c(port + 1);
+    c.send(startCmd("alice", "wb1", token2, "13"));
+    check(c.readUntil(connectMsg("alice", "13")) == connectMsg("alice", "13"), "replaced whiteboard has empty history");
+  }
+
   // test token and debug page w/ enableTest
   {
     section = "enableTest";
@@ -369,6 +403,7 @@ void ScribbleTest::runServerTests()
     SWBServerOptions opts;
     opts.pollTimeout = 1;
     opts.pollClientTimeout = 1.5;
+    opts.delDelay = 0;
     TestServer srv(opts);
     if(!check(srv.ok, "server start")) goto done;
     int port = srv.port();

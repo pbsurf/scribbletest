@@ -190,6 +190,7 @@ int main(int argc, char* argv[])
     opts.host = "127.0.0.1";
     opts.port = 0;  // choose free port
     opts.enableTest = true;
+    opts.delDelay = 0;  // sync tests reuse whiteboard names
     opts.logLevel = 1;  // warnings only
     localServer.reset(new SWBServer(opts));
     if(!localServer->start()) {
