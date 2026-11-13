@@ -9,7 +9,8 @@
 #include "swbserver.h"
 #include "scribblesync.h"
 #include "authproxy.h"
-#include "syncdialog.h"
+#include "ugui/uidriver.h"
+#include "application.h"
 #include "ulib/unet.h"
 #include "ugui/platforms/platformhttp.h"
 #include "ulib/md5.h"
@@ -234,16 +235,23 @@ void ScribbleTest::runServerTests()
   int nchecks = 0;
   std::string details;
   std::string section;
-  // modal dialogs would block forever in headless tests: record them and cancel unless a test handles them
-  int nDialogs = 0;
-  std::function<int(Dialog*)> dialogFn;
-  Application::execDialogHook = [&](Dialog* d){ ++nDialogs; return dialogFn ? dialogFn(d) : int(Dialog::CANCELLED); };
+  // modal dialogs are handled by UiDriver; unexpected ones are closed by watchdog (and reported) so tests can't hang
+  UiDriver ui(ScribbleApp::gui);
+  Application::uiDriver = &ui;
   auto check = [&](bool ok, const std::string& what) {
     ++nchecks;
     if(!ok) {
       ++nFailed;
       details += "server FAIL: " + section + ": " + what + "\n";
     }
+    return ok;
+  };
+  // check driver errors (e.g. widget not found, unexpected dialog), which are then cleared
+  auto checkUi = [&](const std::string& what) {
+    bool ok = ui.errors.empty() && ui.pendingModalHandlers() == 0 && ui.pendingSteps() == 0;
+    check(ok, what + (ok ? "" : fstring(" (%d handlers, %d steps pending): ", int(ui.pendingModalHandlers()),
+        int(ui.pendingSteps())) + joinStr(ui.errors, "\n")));
+    ui.errors.clear();
     return ok;
   };
   Timestamp t0 = mSecSinceEpoch();
@@ -868,18 +876,18 @@ void ScribbleTest::runServerTests()
       url = ScribbleApp::parseWhiteboard("http://127.0.0.1:" + std::to_string(proxy.port()) + "/authwb");
       std::string dlgUser;
       bool dlgPass = false;
-      dialogFn = [&](Dialog* d){
-        SyncLoginDialog* login = static_cast<SyncLoginDialog*>(d);
-        dlgUser = login->userEdit->text();
-        dlgPass = login->passEdit->isDisplayed();
-        login->passEdit->setText("secret");
-        return int(Dialog::ACCEPTED);
-      };
-      nDialogs = 0;
+      ui.onModal("Whiteboard Login", [&](UiDriver& d, Window*){
+        Widget* userEdit = d.find("field:User");
+        dlgUser = userEdit ? UiDriver::widgetText(userEdit) : "";
+        dlgPass = d.find("field:Password") != NULL;
+        d.type("field:Password", "secret");
+        d.then([](UiDriver& d){ d.click("button:OK"); });
+      });
+      int nModals = ui.nModals;
       bool ok = app->syncSignIn(url);
-      dialogFn = NULL;
-      check(ok && nDialogs == 1 && dlgUser == "carol" && dlgPass, fstring("password asked for if needed (%d dialogs): ",
-          nDialogs) + dlgUser);
+      check(ok && ui.nModals == nModals + 1 && dlgUser == "carol" && dlgPass, fstring(
+          "password asked for if needed (%d dialogs): ", ui.nModals - nModals) + dlgUser);
+      checkUi("login dialog driven");
       check(app->syncAPICall(url, "/v1/openswb?name=authwb").status == 200, "signed in after password entered");
       app->syncAuthUser.clear();
       app->syncAuthPass.clear();
@@ -888,24 +896,36 @@ void ScribbleTest::runServerTests()
     // joining server w/o authentication (e.g. whiteboard hosted by another Write): no password needed
     {
       url = ScribbleApp::parseWhiteboard("http://" + hostport + "/clientwb");  // not syncServer, so no saved pw
-      nDialogs = 0;
-      check(app->syncSignIn(url) && nDialogs == 0, fstring("syncSignIn w/o password, name from syncUser (%d dialogs)",
-          nDialogs));
+      int nModals = ui.nModals;
+      check(app->syncSignIn(url) && ui.nModals == nModals, fstring("syncSignIn w/o password, name from syncUser "
+          "(%d dialogs)", ui.nModals - nModals));
       check(bodyStr(app->syncAPICall(url, "/v1/openswb?name=clientwb")).find("user='alice'") != std::string::npos,
           "joined as syncUser");
       // no name: probe shows that only a name is needed, so login dialog w/o password field
       cfg->set("syncUser", "");
       bool dlgPass = true;
-      dialogFn = [&](Dialog* d){
-        SyncLoginDialog* login = static_cast<SyncLoginDialog*>(d);
-        dlgPass = login->passEdit->isDisplayed();
-        login->userEdit->setText("erin");
-        return int(Dialog::ACCEPTED);
-      };
-      nDialogs = 0;
+      std::string dlgDump;
+      bool okDisabled = false;
+      ui.onModal("Whiteboard Login", [&](UiDriver& d, Window* win){
+        dlgDump = d.dump(win, 0);
+        dlgPass = d.find("field:Password") != NULL;
+        // OK is disabled until a name is entered
+        okDisabled = !d.click("button:OK") && d.errors.size() == 1 && d.errors[0].find("disabled") != std::string::npos;
+        d.errors.clear();
+        d.type("field:User", "erin");
+        d.then([](UiDriver& d){ d.click("button:OK"); });
+      });
+      nModals = ui.nModals;
       bool ok = app->syncSignIn(url);
-      dialogFn = NULL;
-      check(ok && nDialogs == 1 && !dlgPass, fstring("name asked for w/o password (%d dialogs)", nDialogs));
+      check(ok && ui.nModals == nModals + 1 && !dlgPass, fstring("name asked for w/o password (%d dialogs)",
+          ui.nModals - nModals));
+      check(okDisabled, "OK disabled until name entered");
+      check(dlgDump.find("dialog \"Whiteboard Login\" modal\n") == 0
+          && dlgDump.find("\"Enter your name to identify you in the whiteboard\"") != std::string::npos
+          && dlgDump.find("\"User\"\n") != std::string::npos && dlgDump.find("textedit focused\n") != std::string::npos
+          && dlgDump.find("Password") == std::string::npos && dlgDump.find("button \"OK\" disabled\n") != std::string::npos
+          && dlgDump.find("button \"Cancel\"\n") != std::string::npos, "UI dump of login dialog:\n" + dlgDump);
+      checkUi("name dialog driven");
       check(std::string(cfg->String("syncUser", "")) == "erin"
           && bodyStr(app->syncAPICall(url, "/v1/openswb?name=clientwb")).find("user='erin'") != std::string::npos,
           "name saved as syncUser and used");
@@ -939,8 +959,27 @@ void ScribbleTest::runServerTests()
     app->syncSession.clear();
   }
 
+  // UiDriver watchdog: unexpected modal is reported and closed instead of blocking
+  {
+    section = "UiDriver";
+    ui.modalTimeout = 0.5;
+    Timestamp tm = mSecSinceEpoch();
+    std::string res = ScribbleApp::messageBox(ScribbleApp::Info, "Test", "Unexpected dialog", {"OK", "Cancel"});
+    check(ui.errors.size() == 1 && ui.errors[0].find("unexpected modal \"Test\"") == 0
+        && ui.errors[0].find("button \"Cancel\"") != std::string::npos && mSecSinceEpoch() - tm < 3000,
+        "unexpected modal closed by watchdog: " + joinStr(ui.errors, "\n"));
+    ui.errors.clear();
+    // handler clicks button by text
+    ui.onModal("Test", [](UiDriver& d, Window*){ d.click("button:Cancel"); });
+    res = ScribbleApp::messageBox(ScribbleApp::Info, "Test", "Expected dialog", {"OK", "Cancel"});
+    check(res == "Cancel", "messageBox button clicked: " + res);
+    checkUi("messageBox driven");
+    ui.modalTimeout = 5;
+  }
+
 done:
-  Application::execDialogHook = NULL;
+  checkUi("no unhandled UI errors");
+  Application::uiDriver = NULL;
   resultStr = details + fstring("server tests: %d checks completed in %d ms: %d failed", nchecks,
       int(mSecSinceEpoch() - t0), nFailed);
 }
