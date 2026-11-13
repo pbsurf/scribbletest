@@ -8,6 +8,7 @@
 #include "scribbleconfig.h"
 #include "swbserver.h"
 #include "scribblesync.h"
+#include "authproxy.h"
 #include "ulib/unet.h"
 #include "ugui/platforms/platformhttp.h"
 #include "ulib/md5.h"
@@ -705,6 +706,54 @@ void ScribbleTest::runServerTests()
     check(h == "host" && p == 7000, "splitHostPort host: " + h + fstring(":%d", p));
     check(ScribbleSync::httpBaseUrl("https://example.com/swb/") == "https://example.com/swb", "httpBaseUrl https");
     check(ScribbleSync::httpBaseUrl("host") == "http://host:7000", "httpBaseUrl host");
+    check(ScribbleSync::basicAuthAllowed("https://example.com/swb") && ScribbleSync::basicAuthAllowed("HTTPS://x")
+        && ScribbleSync::basicAuthAllowed("127.0.0.1:7000") && ScribbleSync::basicAuthAllowed("http://localhost:8080")
+        && ScribbleSync::basicAuthAllowed("[::1]:7000") && !ScribbleSync::basicAuthAllowed("example.com")
+        && !ScribbleSync::basicAuthAllowed("http://example.com") && !ScribbleSync::basicAuthAllowed("10.0.0.1:7000"),
+        "Basic auth only over https or to loopback");
+    // reference values from `openssl passwd -apr1 -salt <salt> <pw>`
+    check(apr1Crypt("password", "xY0./") == "$apr1$xY0./$WnNEczpLd/xsjzVq1coY3/"
+        && apr1Crypt("", "saltsalt") == "$apr1$saltsalt$a8ml/vK5HEjiZ5oypDWA7/", "apr1Crypt: " + apr1Crypt("password", "xY0./"));
+    check(swbAuthSecret("pw") == "3601f707b2d8d206ab19a8329c69c7d9"
+        && swbHtpasswdLine("bob", "pw", "abcdefgh") == "bob:$apr1$abcdefgh$mOzFSYvUPuxwQWa/j1UN4.", "swbHtpasswdLine");
+    std::string randline = swbHtpasswdLine("bob", "pw");
+    check(randline.size() == 4 + 37 && randline != swbHtpasswdLine("bob", "pw"), "htpasswd line w/ random salt: " + randline);
+  }
+
+  // server behind reverse proxy w/ HTTP Basic auth (AuthProxy, like nginx auth_basic)
+  {
+    section = "Basic auth";
+    SWBServerOptions opts;
+    opts.trustProxy = true;
+    opts.delDelay = 0;
+    TestServer srv(opts);
+    if(!check(srv.ok, "server start")) goto done;
+    AuthProxy proxy(srv.port(), [](const std::string& u, const std::string& p){
+      return u == "alice" && p == swbAuthSecret("pw"); });
+    if(!check(proxy.port() > 0, "proxy start")) goto done;
+    std::string base = "http://127.0.0.1:" + std::to_string(proxy.port());
+    for(const char* backend : {"curl", "unet"}) {
+      HttpClient::Options hopts;
+      std::unique_ptr<HttpClient> client = backend[0] == 'c' ? HttpClient::create(hopts) : createUnetHttpClient(hopts);
+      if(!client) continue;
+      std::string b = std::string(" (") + backend + ")";
+      HttpRequest req(base + "/v1/auth?user=mallory&timestamp=1&signature=x", "X-Remote-User: mallory");
+      HttpResponse r = httpSync(client.get(), req);
+      check(r.status == 401 && r.header("WWW-Authenticate").find("Basic") == 0, "no credentials -> 401" + b);
+      req.user = "alice";
+      req.password = "wrong";
+      check(httpSync(client.get(), req).status == 401, "wrong password -> 401" + b);
+      req.password = swbAuthSecret("pw");
+      r = httpSync(client.get(), req);
+      std::string cookie = r.header("set-cookie");
+      check(r.status == 200 && cookie.compare(0, 8, "session=") == 0, "credentials accepted" + b + ": " + r.error);
+      HttpRequest req2(base + "/v1/createswb?name=ba" + backend, "Cookie: " + cookie.substr(0, cookie.find(';')));
+      req2.user = "alice";
+      req2.password = swbAuthSecret("pw");
+      r = httpSync(client.get(), req2);
+      check(r.status == 200 && bodyStr(r).find("user='alice'") != std::string::npos,
+          "user from proxy, not from request" + b + ": " + bodyStr(r));
+    }
   }
 
   // Write's client code: sign in and create whiteboard
@@ -739,6 +788,25 @@ void ScribbleTest::runServerTests()
       std::string body = bodyStr(reply);
       check(reply.status == 200 && body.find("<swb name='clientwb' title='Test' user='bob' token='") != std::string::npos,
           "syncAPICall openswb w/ http:// link: " + body);
+    }
+    // through proxy w/ HTTP Basic auth: credentials from link sent w/ all requests (http allowed for loopback)
+    {
+      SWBServerOptions opts;
+      opts.trustProxy = true;
+      TestServer psrv(opts);
+      AuthProxy proxy(psrv.port(), [](const std::string& u, const std::string& p){
+        return u == "carol" && p == swbAuthSecret("secret"); });
+      url = ScribbleApp::parseWhiteboard("http://carol:secret@127.0.0.1:" + std::to_string(proxy.port()) + "/authwb");
+      if(check(psrv.ok && proxy.port() > 0 && app->syncSignIn(url), "syncSignIn through auth proxy")) {
+        check(app->syncAuthUser == "carol" && app->syncAuthPass == swbAuthSecret("secret"), "Basic auth credentials");
+        HttpResponse reply = app->syncAPICall(url, "/v1/createswb?name=authwb");
+        check(reply.status == 200 && bodyStr(reply).find("user='carol'") != std::string::npos,
+            "syncAPICall through auth proxy: " + bodyStr(reply));
+        app->syncAuthPass = "wrong";
+        check(app->syncAPICall(url, "/v1/openswb?name=authwb").status == 401, "syncAPICall w/ wrong password -> 401");
+      }
+      app->syncAuthUser.clear();
+      app->syncAuthPass.clear();
     }
     cfg->set("syncServer", prevServer.c_str());
     cfg->set("syncUser", prevUser.c_str());

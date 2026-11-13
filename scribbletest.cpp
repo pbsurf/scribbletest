@@ -133,7 +133,8 @@ void ScribbleTest::startSyncTest(int testnum)
   syncTestNum = testnum;
   scribbleDoc->newDocument();
   swbXML.first_child().attribute("name").set_value(fstring("testdoc%d", testnum).c_str());
-  scribbleDoc->openSharedDoc(scribbleConfig->String("syncServer"), swbXML.first_child(), false);
+  scribbleDoc->openSharedDoc(scribbleConfig->String("syncServer"), swbXML.first_child(), false,
+      syncBasicAuth ? scribbleConfig->String("syncUser") : "", std::string("pw-") + scribbleConfig->String("syncUser"));
   scribbleDoc->scribbleSync->userMessage = [this](std::string msg, int level){ syncSlaveMsg(msg, level); };
   waitForSyncDone = true;
 }
@@ -446,6 +447,7 @@ void ScribbleTest::runAll(const std::string& syncServer)
     if(!syncRelay.empty())
       syncSlave->swbXML.first_child().append_attribute("relay").set_value(syncRelay.c_str());
     syncSlave->scribbleConfig->set("syncUser", "testuser2");
+    syncSlave->syncBasicAuth = syncBasicAuth;
     syncSlave->scribbleConfig->set("syncServer", scribbleConfig->String("syncServer"));
     syncSlave->nFailed = 0;
   }
@@ -503,7 +505,8 @@ void ScribbleTest::runAll(const std::string& syncServer)
       // create whiteboard
       //SCRIBBLE_LOG("\nRUNNING TEST %d\n\n", ii);
       swbXML.first_child().attribute("name").set_value(fstring("testdoc%d", ii).c_str());
-      scribbleDoc->openSharedDoc(scribbleConfig->String("syncServer"), swbXML.first_child(), true);
+      scribbleDoc->openSharedDoc(scribbleConfig->String("syncServer"), swbXML.first_child(), true,
+          syncBasicAuth ? scribbleConfig->String("syncUser") : "", std::string("pw-") + scribbleConfig->String("syncUser"));
       // wait until we connect
       if(!syncWait([&](){ return scribbleDoc->scribbleSync->isSyncActive(); }, "master to connect"))
         break;

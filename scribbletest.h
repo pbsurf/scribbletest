@@ -30,6 +30,7 @@ public:
   // relay attribute for sync tests (as sent by server in <swb> reply): "http" for HTTP relay on API port, empty
   //  for raw relay on port + 1
   std::string syncRelay;
+  bool syncBasicAuth = false;  // send HTTP Basic auth w/ user = syncUser, password = "pw-" + syncUser
   std::set<int> updateTests;
   bool updateAll = false;
 

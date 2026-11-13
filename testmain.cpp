@@ -10,6 +10,7 @@
 #include "application.h"
 #include "ulib/fileutil.h"
 #include "swbserver.h"
+#include "authproxy.h"
 #include <thread>
 #include <memory>
 #include <cstdio>
@@ -38,7 +39,8 @@ static int usage(const char* argv0)
       "  --sync <server>      run sync tests using whiteboard server <server>[:port]; 'local' to use a server\n"
       "                       running in this process (on a free port)\n"
       "  --sync-relay=<mode>  'http' (default for local server) to use HTTP relay on API port (via HttpClient),\n"
-      "                       or 'port1' for raw relay on port + 1 (default for other servers)\n"
+      "                       'port1' for raw relay on port + 1 (default for other servers), or 'http-auth' for\n"
+      "                       HTTP relay through reverse proxy w/ HTTP Basic auth (local server only)\n"
       "  --perf               run performance test instead of regular tests\n"
       "  --redraw             run only redraw tests (partial vs. full redraw of app window at several UI scales);\n"
       "                       these also run after regular tests unless --only, --update, or --sync is given\n"
@@ -116,7 +118,7 @@ int main(int argc, char* argv[])
     StringRef arg(argv[ii]);
     if(arg == "--sync" && ii + 1 < argc)
       syncServer = argv[++ii];
-    else if(arg == "--sync-relay=http" || arg == "--sync-relay=port1")
+    else if(arg == "--sync-relay=http" || arg == "--sync-relay=port1" || arg == "--sync-relay=http-auth")
       syncRelay = argv[ii] + 13;
     else if(arg == "--out" && ii + 1 < argc)
       outPath = argv[++ii];
@@ -185,8 +187,13 @@ int main(int argc, char* argv[])
   // in-process whiteboard server (same server as `Write --server`)
   std::unique_ptr<SWBServer> localServer;
   std::thread localServerThread;
+  std::unique_ptr<AuthProxy> authProxy;
+  bool syncBasicAuth = false;
   if(syncServer == "local") {
     SWBServerOptions opts;
+    // http-auth: HTTP relay through reverse proxy w/ HTTP Basic auth
+    syncBasicAuth = syncRelay == "http-auth";
+    opts.trustProxy = syncBasicAuth;
     opts.host = "127.0.0.1";
     opts.port = 0;  // choose free port
     opts.enableTest = true;
@@ -200,6 +207,12 @@ int main(int argc, char* argv[])
     }
     localServerThread = std::thread([&](){ localServer->run(); });
     syncServer = "127.0.0.1:" + std::to_string(localServer->apiPort());
+    if(syncBasicAuth) {
+      authProxy.reset(new AuthProxy(localServer->apiPort(), [](const std::string& u, const std::string& p){
+        return p == "pw-" + u; }));
+      syncServer = "127.0.0.1:" + std::to_string(authProxy->port());
+      syncRelay = "http";
+    }
     if(syncRelay.empty())
       syncRelay = "http";
   }
@@ -227,6 +240,7 @@ int main(int argc, char* argv[])
         test.updateTests = updateTests;
         test.updateAll = updateAll;
         test.syncRelay = syncRelay == "port1" ? "" : syncRelay;
+        test.syncBasicAuth = syncBasicAuth;
         test.runAll(syncServer);
         printf("%s\n", test.resultStr.c_str());
         res = test.nFailed > 0 || (strict && test.nMinor > 0) ? 1 : 0;
@@ -247,6 +261,11 @@ int main(int argc, char* argv[])
     }
   }
 
+  if(authProxy) {
+    printf("auth proxy: %d requests forwarded, %d rejected\n", int(authProxy->nForwarded), int(authProxy->nRejected));
+    if(authProxy->nForwarded == 0 || authProxy->nRejected > 0) res = 1;
+    authProxy.reset();
+  }
   if(localServer) {
     localServer->stop();
     localServerThread.join();
