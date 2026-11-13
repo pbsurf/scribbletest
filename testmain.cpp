@@ -50,6 +50,9 @@ static int usage(const char* argv0)
       "  --no-server          don't run whiteboard server tests\n"
       "  --gl                 use GL renderer for app window (EGL surfaceless context, e.g. Mesa llvmpipe;\n"
       "                       set LIBGL_ALWAYS_SOFTWARE=1 to force llvmpipe); fails if GL is unavailable\n"
+      "  --automation <path>  instead of running tests, run app (headless) driven by text commands read from\n"
+      "                       <path> (e.g. a FIFO; '-' for stdin) w/ replies written to <path>.out; see uidrive.sh\n"
+      "                       and 'help' command\n"
       "  --compare            compare two images (.png) or documents (.html, .svg) as tests do\n"
       "                       (exit code: 0 PASS, 1 MINOR, 2 FAIL); --tol is pixel or numeric tolerance\n"
       "  Exit code is 1 if any test fails, else 0\n", argv0, argv0);
@@ -103,6 +106,7 @@ int main(int argc, char* argv[])
   std::string outPath;
   std::string syncServer;
   std::string syncRelay;  // empty: default
+  std::string automation;
   std::set<int> onlyTests, updateTests;
   bool updateAll = false;
   bool perf = false;
@@ -154,6 +158,8 @@ int main(int argc, char* argv[])
       serverTests = 0;
     else if(arg == "--gl")
       useGL = true;
+    else if(arg == "--automation" && ii + 1 < argc)
+      automation = argv[++ii];
     else if(argv[ii][0] == '-')
       return usage(argv[0]);
     else
@@ -175,6 +181,17 @@ int main(int argc, char* argv[])
   }
   printf("WriteTest: %s renderer%s%s\n", Application::glRender ? "GL" : "SW",
       Application::glRender ? ": " : "", headlessGLRenderer());
+
+  if(!automation.empty()) {
+    if(!Application::startAutomation(automation)) {
+      appShutdown();
+      return 2;
+    }
+    while(Application::processEvents())
+      Application::layoutAndDraw();
+    appShutdown();
+    return 0;
+  }
 
   if(outPath.empty())
     outPath = FSPath(Application::appDir, "testout").path;

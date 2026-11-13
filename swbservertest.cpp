@@ -975,6 +975,42 @@ void ScribbleTest::runServerTests()
     check(res == "Cancel", "messageBox button clicked: " + res);
     checkUi("messageBox driven");
     ui.modalTimeout = 5;
+
+    // text command interface (as used by --automation)
+    std::vector<std::string> replies;
+    ui.replyFn = [&](const std::string& r){ replies.push_back(r); };
+    auto pumpUntil = [&](size_t nreplies) {
+      Timestamp tc = mSecSinceEpoch();
+      while(replies.size() < nreplies && mSecSinceEpoch() - tc < 5000) {
+        Application::processEvents();
+        Application::layoutAndDraw();
+      }
+      return replies.size() >= nreplies;
+    };
+    auto runCmd = [&](const std::string& cmd) {
+      size_t n = replies.size();
+      ui.queueCommand(cmd + "\n");
+      return pumpUntil(n + 1) ? replies[n] : std::string("(no reply)");
+    };
+    std::string r = runCmd("dump");
+    check(r.compare(0, 16, "> dump\nok\nwindow") == 0 && r.size() > 2 && r.substr(r.size() - 2) == "\n\n"
+        && r.find("\n\n") == r.size() - 2, "dump command: " + r.substr(0, 200));
+    r = runCmd("click \"button:No such button\"");
+    check(r.find("\nerror: widget not found: button:No such button") != std::string::npos, "click error: " + r);
+    check(runCmd("bogus").find("\nerror: unknown command") != std::string::npos, "unknown command");
+    // commands run inside modal's event loop: queued before messageBox blocks
+    size_t n = replies.size();
+    ui.queueCommand("wait \"button:Cancel\" 5");
+    ui.queueCommand("find \"button:OK\"");
+    ui.queueCommand("click \"button:Cancel\"");
+    res = ScribbleApp::messageBox(ScribbleApp::Info, "Test", "Commands", {"OK", "Cancel"});
+    pumpUntil(n + 3);
+    check(res == "Cancel" && replies.size() == n + 3 && replies[n].find("> wait \"button:Cancel\" 5\nok\ndialog \"Test\"") == 0
+        && replies[n + 1].find("> find \"button:OK\"\nok\nbutton \"OK\" [") == 0
+        && replies[n + 2].find("> click \"button:Cancel\"\nok\n") == 0, "commands drive modal: " + res + "\n"
+        + joinStr(std::vector<std::string>(replies.begin() + n, replies.end()), ""));
+    ui.replyFn = NULL;
+    checkUi("command interface");
   }
 
 done:
