@@ -21,14 +21,16 @@ else
 endif
 
 CC = gcc
-DEFS = -DNVGTEST_FONT='"$(NVGXC)/example/fonts/Roboto-Regular.ttf"'
+# data files (font, SVGs) are looked up by name in these directories (or --data DIR)
+DATA_DIRS = $(NVGXC)/example:$(NVGXC)/example/svg:$(NVGXC)/example/fonts:$(abspath ../../scribbleres)
+DEFS = -DNVGTEST_DATA_DIRS='"$(DATA_DIRS)"'
 LIBS = -lEGL -ldl -lm
 GLAD = $(NVGXC)/glad/glad.c
 ifneq ($(ANDROID), 0)
   ANDROID_NDK ?= $(lastword $(sort $(wildcard $(HOME)/android-sdk/ndk/*)))
   CC = $(ANDROID_NDK)/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android24-clang
-  # font is pushed alongside the executable by ab.sh
-  DEFS = -DNVGTEST_GLES -DNVGTEST_FONT='"/data/local/tmp/nvgtest/Roboto-Regular.ttf"'
+  # data files are pushed alongside the executable by ab.sh
+  DEFS = -DNVGTEST_GLES -DNVGTEST_DATA_DIRS='"/data/local/tmp/nvgtest"'
   LIBS = -lEGL -lGLESv3 -lm
   GLAD =
   BUILDDIR ?= Android$(BUILDTYPE)
@@ -44,7 +46,7 @@ BUILDDIR ?= $(BUILDTYPE)
 
 TARGET = $(BUILDDIR)/nvgtest
 CFLAGS = $(OPT) -std=gnu99 -MMD -Wall -Wno-unused-function -Wno-unused-variable -Wno-unused-but-set-variable $(WARN_EXTRA)
-CPPFLAGS = -I$(NVGSRC) -I$(NVGXC)/glad -isystem $(NVGXC)/example/stb $(DEFS)
+CPPFLAGS = -I$(NVGSRC) -I$(NVGXC)/glad -isystem $(NVGXC)/example/stb -isystem $(NVGXC)/example $(DEFS)
 
 OBJS = $(BUILDDIR)/nvgtest.o $(BUILDDIR)/nanovg.o $(if $(GLAD),$(BUILDDIR)/glad.o)
 

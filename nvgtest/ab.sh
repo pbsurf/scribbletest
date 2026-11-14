@@ -6,11 +6,13 @@
 #  -s BASE_SRC_DIR: use this directory (containing nanovg.c etc.) as baseline instead of a git revision, e.g. to
 #   isolate one of several uncommitted changes
 #  -b NFRAMES: also benchmark both builds after comparing, alternating base and new ROUNDS times (default 2) per
-#   config, w/ args from BENCH_ARGS (default: 4K framebuffer, each text page scene's draws submitted 10x per frame), configs
+#   config, w/ args from BENCH_ARGS (';'-separated groups; default: text pages at 4K w/ draws submitted 10x per
+#   frame, SVG and main path scenes at 1080p 5x), configs
 #   from BENCH_CONFIGS (default all); prints a summary of median "flush" time over rounds
 #  -a: run on Android device (adb; arm64): builds w/ NDK, pushes to /data/local/tmp/nvgtest, pulls images back
 # exit code 1 if any image differs
 set -e
+set -f  # no globbing: scene patterns like write_* are passed to nvgtest
 HERE=$(cd "$(dirname "$0")" && pwd)
 NVGXC=$(cd "$HERE/../../nanovgXC" && pwd)
 BASE=HEAD
@@ -18,7 +20,10 @@ BASESRC=
 BENCH=0
 ANDROID=0
 OUT=$HERE/out
-BENCH_ARGS=${BENCH_ARGS:---size 3840x2160 --gpu-repeat 10 --scene text_page8 --scene text_page12 --scene text_page24}
+# ';'-separated groups of nvgtest args, each run separately: text is cheap per pixel so needs a large frame and many
+#  repeats; paths are much more expensive
+BENCH_ARGS=${BENCH_ARGS:---size 3840x2160 --gpu-repeat 10 --scene text_page12 --scene text_page24;\
+--size 1920x1080 --gpu-repeat 5 --scene svg_tiger --scene write_* --scene paths_big --scene paths_small --scene paths_axis}
 BENCH_CONFIGS=${BENCH_CONFIGS:-sdf-srgb sdf-linear summed-srgb}
 ROUNDS=${ROUNDS:-2}
 DEV=/data/local/tmp/nvgtest
@@ -60,7 +65,10 @@ if [ $ANDROID -ne 0 ]; then
   adb shell "rm -rf $DEV && mkdir -p $DEV"
   adb push "$OUT/build-base-android/nvgtest" "$DEV/nvgtest-base" >/dev/null
   adb push "$OUT/build-new-android/nvgtest" "$DEV/nvgtest-new" >/dev/null
-  adb push "$NVGXC/example/fonts/Roboto-Regular.ttf" "$DEV/" >/dev/null
+  for f in "$NVGXC/example/fonts/Roboto-Regular.ttf" "$NVGXC/example/svg/tiger.svg" "$NVGXC/example/Opt_page1.svg" \
+      "$NVGXC/../scribbleres/Intro.svg"; do
+    adb push "$f" "$DEV/" >/dev/null
+  done
 else
   make -s -C "$HERE" -j2 NVGSRC="$OUT/base-src/src" BUILDDIR="$OUT/build-base"
   make -s -C "$HERE" -j2 BUILDDIR="$OUT/build-new"
@@ -70,7 +78,9 @@ fi
 run() {
   local build=$1; shift
   if [ $ANDROID -ne 0 ]; then
-    adb shell "cd $DEV && ./nvgtest-$build $*" 2>/dev/null
+    local args="" a
+    for a in "$@"; do args="$args '$a'"; done  # quote for device shell (scene patterns)
+    adb shell "cd $DEV && ./nvgtest-$build $args" 2>/dev/null
   else
     "$OUT/build-$build/nvgtest" "$@" 2>/dev/null
   fi
@@ -107,7 +117,10 @@ if [ "$BENCH" -gt 0 ]; then
     for ((round = 0; round < ROUNDS; ++round)); do
       for build in base new; do
         echo "-- $build"
-        run $build $args --bench "$BENCH" $BENCH_ARGS | tee /dev/stderr | sed "s/^/$name $build /" >> "$BENCHLOG"
+        IFS=';' read -ra BGROUPS <<< "$BENCH_ARGS"
+        for bargs in "${BGROUPS[@]}"; do
+          run $build $args --bench "$BENCH" $bargs | tee /dev/stderr | sed "s/^/$name $build /" >> "$BENCHLOG"
+        done
       done
     done 2>&1
   done
