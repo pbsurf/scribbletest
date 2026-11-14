@@ -1013,6 +1013,113 @@ void ScribbleTest::runServerTests()
     checkUi("command interface");
   }
 
+  // browser client (Write web app): CORS, session id w/o cookies
+  {
+    section = "CORS";
+    auto status = [](const std::string& resp) { return resp.size() >= 12 ? resp.substr(9, 3) : std::string("---"); };
+    const std::string origin = "Origin: http://app.example\r\n";
+    {
+      TestServer srv(SWBServerOptions{});
+      if(!check(srv.ok, "server start")) goto done;
+      std::string resp = httpGet(srv.port(), "/v1/auth?user=alice", "", origin);
+      check(resp.find("Access-Control-") == std::string::npos, "no CORS headers by default: " + resp);
+      TestSock pf(srv.port());
+      pf.send("OPTIONS /v1/auth HTTP/1.1\r\nHost: x\r\nConnection: close\r\n" + origin + "\r\n");
+      pf.waitClosed();
+      check(status(pf.buf) == "204" && pf.buf.find("Access-Control-") == std::string::npos,
+          "preflight w/o CORS enabled: no CORS headers: " + pf.buf);
+    }
+    SWBServerOptions opts;
+    opts.corsOrigin = "http://other.example http://app.example";
+    TestServer srv(opts);
+    if(!check(srv.ok, "server start")) goto done;
+    int port = srv.port();
+    std::string resp = httpGet(port, "/v1/auth?user=alice", "", origin);
+    std::string sid = between(httpBody(resp), "session='", "'");
+    check(!sid.empty() && sid == between(resp, "Set-Cookie: session=", "\r;"), "session id in /v1/auth body: " + resp);
+    check(resp.find("Access-Control-Allow-Origin: http://app.example\r\nVary: Origin\r\n") != std::string::npos,
+        "allowed origin echoed: " + resp);
+    check(httpGet(port, "/v1/auth?user=x", "", "Origin: http://evil.example\r\n").find("Access-Control-")
+        == std::string::npos, "other origin: no CORS headers");
+    TestSock pf(port);
+    pf.send("OPTIONS /v1/createswb?name=c1 HTTP/1.1\r\nHost: x\r\n" + origin
+        + "Access-Control-Request-Method: GET\r\nAccess-Control-Request-Headers: x-session\r\n\r\n");
+    resp = readResponse(pf);
+    check(status(resp) == "204" && resp.find("Access-Control-Allow-Origin: http://app.example") != std::string::npos
+        && resp.find("Access-Control-Allow-Headers: Authorization, Content-Type, X-Session") != std::string::npos
+        && !pf.eof, "preflight (connection kept): " + resp);
+    std::string body = httpBody(httpGet(port, "/v1/createswb?name=c1", "", origin + "X-Session: " + sid + "\r\n"));
+    std::string token = between(body, "token='", "'");
+    check(body.find("user='alice'") != std::string::npos && token.size() == 32, "X-Session header as session: " + body);
+    // relay: all responses, incl. poll w/ data (sent w/o sendHTTP), have CORS headers
+    auto req = [&](TestSock& s, const std::string& method, const std::string& path, const std::string& data = "") {
+      s.send(method + " " + path + " HTTP/1.1\r\nHost: x\r\n" + origin
+          + (method == "POST" ? "Content-Length: " + std::to_string(data.size()) + "\r\n" : "") + "\r\n" + data);
+      return readResponse(s);
+    };
+    const char* acao = "Access-Control-Allow-Origin: http://app.example\r\n";
+    TestSock h(port);
+    resp = req(h, "POST", "/v1/swb/start?document=c1&user=alice&token=" + token + "&uuid=1");
+    std::string id = httpBody(resp);
+    check(status(resp) == "200" && resp.find(acao) != std::string::npos, "relay start: " + resp);
+    resp = req(h, "GET", "/v1/swb/poll?id=" + id + "&offset=0");
+    check(status(resp) == "200" && !httpBody(resp).empty() && resp.find(acao) != std::string::npos, "poll w/ data: " + resp);
+    resp = req(h, "POST", "/v1/swb/send?id=" + id + "&seq=1", "hello");
+    check(status(resp) == "200" && resp.find(acao) != std::string::npos, "send: " + resp);
+    resp = req(h, "GET", "/v1/swb/poll?id=" + id + "&offset=999999");
+    check(status(resp) == "400" && resp.find(acao) != std::string::npos, "error reply: " + resp);
+  }
+
+  // web app served by server (--web-root)
+  {
+    section = "web";
+    auto status = [](const std::string& resp) { return resp.size() >= 12 ? resp.substr(9, 3) : std::string("---"); };
+    std::string root = FSPath(ScribbleApp::app->tempPath, "webroot").path;
+    createPath(FSPath(root, "sub/"));
+    auto writeStr = [](const FSPath& path, const std::string& str) {
+      FILE* f = fopen(path.c_str(), "wb");
+      if(f) { fwrite(str.data(), 1, str.size(), f); fclose(f); }
+    };
+    writeStr(FSPath(root, "Write.html"), "<html>app</html>");
+    writeStr(FSPath(root, "Write.wasm"), "wasm");
+    writeStr(FSPath(root, "sub/a.js"), "js");
+    writeStr(FSPath(root, "../secret.txt"), "secret");
+    {
+      TestServer srv(SWBServerOptions{});
+      if(!check(srv.ok, "server start")) goto done;
+      check(httpGet(srv.port(), "/Write.html").find("<html>") == std::string::npos, "no web root by default");
+    }
+    SWBServerOptions opts;
+    opts.webRoot = root;
+    TestServer srv(opts);
+    if(!check(srv.ok, "server start")) goto done;
+    int port = srv.port();
+    std::string resp = httpGet(port, "/");
+    check(status(resp) == "200" && httpBody(resp) == "<html>app</html>"
+        && resp.find("Content-Type: text/html") != std::string::npos, "/ -> app page: " + resp);
+    resp = httpGet(port, "/Write.wasm");
+    check(httpBody(resp) == "wasm" && resp.find("Content-Type: application/wasm") != std::string::npos, "wasm: " + resp);
+    check(httpBody(httpGet(port, "/sub/a.js")) == "js", "file in subdir");
+    resp = httpGet(port, "/board%201", "", "Accept: text/html,*/*;q=0.8\r\n");
+    check(status(resp) == "200" && httpBody(resp) == "<html>app</html>", "whiteboard link -> app page: " + resp);
+    check(httpBody(httpGet(port, "/board1")) == "<html>app</html>", "whiteboard link w/o Accept -> app page");
+    check(status(httpGet(port, "/favicon.ico", "", "Accept: image/*,*/*;q=0.8\r\n")) == "404", "missing image -> 404");
+    check(status(httpGet(port, "/sub/missing")) == "404", "missing file in subdir -> 404");
+    check(status(httpGet(port, "/../secret.txt")) == "404" && status(httpGet(port, "/%2e%2e/secret.txt")) == "404"
+        && status(httpGet(port, "/sub/..%2f..%2fsecret.txt")) == "404", "no access outside web root");
+    std::string etag = between(httpGet(port, "/Write.wasm"), "ETag: ", "\r");
+    resp = httpGet(port, "/Write.wasm", "", "If-None-Match: " + etag + "\r\n");
+    check(!etag.empty() && status(resp) == "304" && httpBody(resp).empty(), "If-None-Match -> 304: " + resp);
+    TestSock hs(port);
+    hs.send("HEAD /Write.wasm HTTP/1.1\r\nHost: x\r\n\r\n");
+    resp = hs.readUntil("\r\n\r\n");
+    check(status(resp) == "200" && resp.find("Content-Length: 4\r\n") != std::string::npos && hs.drain().empty()
+        && !hs.eof, "HEAD (no body, connection kept): " + resp);
+    check(httpBody(httpGet(port, "/v1/auth")) == "<auth none='1'/>", "API unaffected");
+    removeDir(FSPath(root));
+    removeFile(FSPath(ScribbleApp::app->tempPath, "secret.txt").c_str());
+  }
+
 done:
   checkUi("no unhandled UI errors");
   Application::uiDriver = NULL;
