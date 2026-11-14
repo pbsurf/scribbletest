@@ -2,13 +2,17 @@
 # A/B test of nanovgXC changes: renders all nvgtest scenes w/ nanovgXC/src from BASE_REV (default HEAD) and w/
 #  the working tree, then compares exactly.  Only nanovgXC/src is taken from BASE_REV; nvgtest itself, glad, stb
 #  and fonts come from the working tree.
-# usage: ab.sh [-r BASE_REV | -s BASE_SRC_DIR] [-b NFRAMES] [-a] [-o OUTDIR] [-- extra nvgtest args]
+# usage: ab.sh [-r BASE_REV | -s BASE_SRC_DIR] [-b NFRAMES] [-g GROUPS] [-q] [-a] [-o OUTDIR] [-- extra nvgtest args]
 #  -s BASE_SRC_DIR: use this directory (containing nanovg.c etc.) as baseline instead of a git revision, e.g. to
 #   isolate one of several uncommitted changes
 #  -b NFRAMES: also benchmark both builds after comparing, alternating base and new ROUNDS times (default 2) per
-#   config, w/ args from BENCH_ARGS (';'-separated groups; default: text pages at 4K w/ draws submitted 10x per
-#   frame, SVG and main path scenes at 1080p 5x), configs
-#   from BENCH_CONFIGS (default all); prints a summary of median "flush" time over rounds
+#   config, w/ nvgtest args from BENCH_ARGS (';'-separated, each run separately; default from -g), configs from
+#   BENCH_CONFIGS (default all); prints a summary of median "flush" time over rounds
+#  -g GROUPS: benchmark only these comma-separated scene groups (default all): text (text pages at 4K, draws
+#   submitted 10x per frame), write (handwriting pages), svg (tiger), paths (big, small, axis-aligned); the
+#   non-text groups run at 1080p 5x.  Use to focus on where a change is expected to matter.
+#  -q: quick: compare and benchmark only the sdf-srgb config, -b 10 if -b not given (for iterating; finish w/ a
+#   full run: all configs, more rounds)
 #  -a: run on Android device (adb; arm64): builds w/ NDK, pushes to /data/local/tmp/nvgtest, pulls images back
 # exit code 1 if any image differs
 set -e
@@ -22,23 +26,44 @@ ANDROID=0
 OUT=$HERE/out
 # ';'-separated groups of nvgtest args, each run separately: text is cheap per pixel so needs a large frame and many
 #  repeats; paths are much more expensive
-BENCH_ARGS=${BENCH_ARGS:---size 3840x2160 --gpu-repeat 10 --scene text_page12 --scene text_page24;\
---size 1920x1080 --gpu-repeat 5 --scene svg_tiger --scene write_* --scene paths_big --scene paths_small --scene paths_axis}
-BENCH_CONFIGS=${BENCH_CONFIGS:-sdf-srgb sdf-linear summed-srgb}
+BGROUPSEL=text,write,svg,paths
+QUICK=0
 ROUNDS=${ROUNDS:-2}
 DEV=/data/local/tmp/nvgtest
-while getopts "r:s:b:o:a" opt; do
+while getopts "r:s:b:g:o:qa" opt; do
   case $opt in
     r) BASE=$OPTARG ;;
     s) BASESRC=$(cd "$OPTARG" && pwd) ;;
     b) BENCH=$OPTARG ;;
     o) OUT=$OPTARG ;;
+    g) BGROUPSEL=$OPTARG ;;
+    q) QUICK=1 ;;
     a) ANDROID=1 ;;
-    *) sed -n '2,14p' "$0"; exit 2 ;;
+    *) sed -n '2,19p' "$0"; exit 2 ;;
   esac
 done
 shift $((OPTIND - 1))
 [ "$1" = "--" ] && shift
+if [ $QUICK -ne 0 ]; then
+  [ "$BENCH" -eq 0 ] && BENCH=10
+  BENCH_CONFIGS=${BENCH_CONFIGS:-sdf-srgb}
+fi
+BENCH_CONFIGS=${BENCH_CONFIGS:-sdf-srgb sdf-linear summed-srgb}
+# BENCH_ARGS from groups: text needs a large frame and many repeats (cheap per pixel); paths are much more expensive
+if [ -z "$BENCH_ARGS" ]; then
+  TEXTARGS=; PATHARGS=
+  for g in ${BGROUPSEL//,/ }; do
+    case $g in
+      text) TEXTARGS="--size 3840x2160 --gpu-repeat 10 --scene text_page12 --scene text_page24" ;;
+      write) PATHARGS="$PATHARGS --scene write_*" ;;
+      svg) PATHARGS="$PATHARGS --scene svg_tiger" ;;
+      paths) PATHARGS="$PATHARGS --scene paths_big --scene paths_small --scene paths_axis" ;;
+      *) echo "unknown group $g"; exit 2 ;;
+    esac
+  done
+  [ -n "$PATHARGS" ] && PATHARGS="--size 1920x1080 --gpu-repeat 5$PATHARGS"
+  BENCH_ARGS=$TEXTARGS${TEXTARGS:+${PATHARGS:+;}}$PATHARGS
+fi
 
 mkdir -p "$OUT"
 OUT=$(cd "$OUT" && pwd)
@@ -92,6 +117,7 @@ STATUS=0
 for cfg in "${CONFIGS[@]}"; do
   name=${cfg%%:*}
   args=${cfg#*:}
+  [ $QUICK -ne 0 ] && [[ " $BENCH_CONFIGS " != *" $name "* ]] && continue
   rm -rf "$OUT/base/$name" "$OUT/new/$name" "$OUT/diff/$name"
   mkdir -p "$OUT/base" "$OUT/new" "$OUT/diff"
   for build in base new; do
