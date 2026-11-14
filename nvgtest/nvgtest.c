@@ -320,6 +320,7 @@ typedef struct {
   int w, h;
   int srgb;
   int repeat;  // draw scene this many times per frame (for benchmarking, so per-frame overhead is less significant)
+  int gpuRepeat;  // submit the frame's GL draws this many times (nanovg CPU work done once) - see main()
 } Renderer;
 
 static double nowSec(void);
@@ -339,6 +340,10 @@ static void renderScene(Renderer* r, const Scene* scene, double* tFlush)
   if(tFlush)
     *tFlush = nowSec();
   nvgEndFrame(r->vg);
+  // vtex resets calls at start of frame, not end, so flushing again draws the same frame again
+  NVGparams* params = nvgInternalParams(r->vg);
+  for(int ii = 1; ii < r->gpuRepeat; ++ii)
+    params->renderFlush(params->userPtr);
 }
 
 static int saveScene(Renderer* r, const char* path)
@@ -546,6 +551,8 @@ static void usage(void)
          "  --bench N        time N frames of each scene (after warmup) instead of saving PNGs\n"
          "  --warmup N       warmup frames for --bench (default 10)\n"
          "  --repeat K       draw each scene K times per frame (default 1)\n"
+         "  --gpu-repeat K   submit each frame's GL draws K times (CPU work once; default 1) - use for benchmarking\n"
+         "                   on mobile: w/ --repeat, the GPU is idle during nanovg CPU work and may be downclocked\n"
          "  --font PATH      .ttf to use (default " NVGTEST_FONT ")\n");
 }
 
@@ -554,7 +561,7 @@ int main(int argc, char* argv[])
   const char* outDir = ".";
   const char* sceneNames[64];
   int nSceneNames = 0;
-  int sdf = 1, srgb = 1, w = 1024, h = 1024, bench = 0, warmup = 10, repeat = 1;
+  int sdf = 1, srgb = 1, w = 1024, h = 1024, bench = 0, warmup = 10, repeat = 1, gpuRepeat = 1;
   float atlasPx = 48;
   const char* fontPath = NVGTEST_FONT;
 
@@ -582,6 +589,7 @@ int main(int argc, char* argv[])
     else if(strcmp(arg, "--bench") == 0) bench = atoi(val);
     else if(strcmp(arg, "--warmup") == 0) warmup = atoi(val);
     else if(strcmp(arg, "--repeat") == 0) repeat = atoi(val);
+    else if(strcmp(arg, "--gpu-repeat") == 0) gpuRepeat = atoi(val);
     else if(strcmp(arg, "--font") == 0) fontPath = val;
     else { usage(); return 2; }
     ++ii;
@@ -612,7 +620,7 @@ int main(int argc, char* argv[])
       (const char*)glGetString(GL_VERSION), sdf ? "SDF" : "summed", srgb, w, h);
 
   Renderer r;
-  r.w = w; r.h = h; r.srgb = srgb; r.repeat = repeat > 0 ? repeat : 1;
+  r.w = w; r.h = h; r.srgb = srgb; r.repeat = repeat > 0 ? repeat : 1; r.gpuRepeat = gpuRepeat > 0 ? gpuRepeat : 1;
   int nvgFlags = NVG_NO_FONTSTASH | NVG_AUTOW_DEFAULT | (sdf ? NVG_SDF_TEXT : 0) | (srgb ? NVG_SRGB : 0);
   r.vg = nvglCreate(nvgFlags);
   if(!r.vg) { fprintf(stderr, "nvgtest: nvglCreate failed\n"); return 1; }

@@ -6,7 +6,7 @@
 #  -s BASE_SRC_DIR: use this directory (containing nanovg.c etc.) as baseline instead of a git revision, e.g. to
 #   isolate one of several uncommitted changes
 #  -b NFRAMES: also benchmark both builds after comparing, alternating base and new ROUNDS times (default 2) per
-#   config, w/ args from BENCH_ARGS (default: 4K framebuffer, each text page scene drawn 10x per frame), configs
+#   config, w/ args from BENCH_ARGS (default: 4K framebuffer, each text page scene's draws submitted 10x per frame), configs
 #   from BENCH_CONFIGS (default all); prints a summary of median "flush" time over rounds
 #  -a: run on Android device (adb; arm64): builds w/ NDK, pushes to /data/local/tmp/nvgtest, pulls images back
 # exit code 1 if any image differs
@@ -18,7 +18,7 @@ BASESRC=
 BENCH=0
 ANDROID=0
 OUT=$HERE/out
-BENCH_ARGS=${BENCH_ARGS:---size 3840x2160 --repeat 10 --scene text_page8 --scene text_page12 --scene text_page24}
+BENCH_ARGS=${BENCH_ARGS:---size 3840x2160 --gpu-repeat 10 --scene text_page8 --scene text_page12 --scene text_page24}
 BENCH_CONFIGS=${BENCH_CONFIGS:-sdf-srgb sdf-linear summed-srgb}
 ROUNDS=${ROUNDS:-2}
 DEV=/data/local/tmp/nvgtest
