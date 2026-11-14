@@ -1,0 +1,7 @@
+Release/
+Debug/
+GLESRelease/
+GLESDebug/
+AndroidRelease/
+AndroidDebug/
+out/
