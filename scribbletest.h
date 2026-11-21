@@ -23,6 +23,7 @@ public:
   // redraw tests use the app's main window, so use ScribbleTest(app->activeDoc(), ...) constructor
   void runRedrawTests();
   void runServerTests();  // whiteboard server (swbserver.cpp) - see swbservertest.cpp
+  void runFileTests();  // document saving and external file changes - see filetest.cpp
 
   // set by caller before runAll(): tests to run (all if empty); tests for which refs should be updated from
   //  output if they don't PASS (or all tests if updateAll)

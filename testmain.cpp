@@ -48,6 +48,9 @@ static int usage(const char* argv0)
       "  --server             run only whiteboard server tests (HTTP API, relay protocol); these also\n"
       "                       run after regular tests unless --only, --update, --sync, or --redraw is given\n"
       "  --no-server          don't run whiteboard server tests\n"
+      "  --files              run only file tests (saving, external changes to document file); these also run\n"
+      "                       after regular tests unless --only, --update, --sync, --redraw, or --server is given\n"
+      "  --no-files           don't run file tests\n"
       "  --gl                 use GL renderer for app window (EGL surfaceless context, e.g. Mesa llvmpipe;\n"
       "                       set LIBGL_ALWAYS_SOFTWARE=1 to force llvmpipe); fails if GL is unavailable\n"
       "  --automation <path>  instead of running tests, run app (headless) driven by text commands read from\n"
@@ -114,6 +117,7 @@ int main(int argc, char* argv[])
   bool useGL = false;
   int redraw = 1;  // 0: skip, 1: after regular tests (if no --only, --update, --sync), 2: redraw tests only
   int serverTests = 1;  // same as redraw
+  int fileTests = 1;  // same as redraw
   // line buffered so output isn't lost (e.g. if sanitizer exits early) and stays in order w/ stderr in logs
   setvbuf(stdout, NULL, _IOLBF, 0);
   if(argc > 1 && strcmp(argv[1], "--compare") == 0)
@@ -156,6 +160,10 @@ int main(int argc, char* argv[])
       serverTests = 2;
     else if(arg == "--no-server")
       serverTests = 0;
+    else if(arg == "--files")
+      fileTests = 2;
+    else if(arg == "--no-files")
+      fileTests = 0;
     else if(arg == "--gl")
       useGL = true;
     else if(arg == "--automation" && ii + 1 < argc)
@@ -244,7 +252,14 @@ int main(int argc, char* argv[])
     }
     else {
       bool defaultRun = onlyTests.empty() && updateTests.empty() && !updateAll && syncServer.empty();
-      if(serverTests == 2) {
+      if(fileTests == 2) {
+        ScribbleTest test(app->activeDoc(), app->bookmarkArea, app->scribbleMode, outPath);
+        test.runFileTests();
+        printf("%s\n", test.resultStr.c_str());
+        if(test.nFailed > 0) res = 1;
+        redraw = serverTests = 0;
+      }
+      else if(serverTests == 2) {
         redraw = 0;
         ScribbleTest test(app->activeDoc(), app->bookmarkArea, app->scribbleMode, outPath);
         test.runServerTests();
@@ -265,6 +280,12 @@ int main(int argc, char* argv[])
       if(serverTests == 1 && redraw != 2 && defaultRun) {
         ScribbleTest test(app->activeDoc(), app->bookmarkArea, app->scribbleMode, outPath);
         test.runServerTests();
+        printf("%s\n", test.resultStr.c_str());
+        if(test.nFailed > 0) res = 1;
+      }
+      if(fileTests == 1 && serverTests != 2 && redraw != 2 && defaultRun) {
+        ScribbleTest test(app->activeDoc(), app->bookmarkArea, app->scribbleMode, outPath);
+        test.runFileTests();
         printf("%s\n", test.resultStr.c_str());
         if(test.nFailed > 0) res = 1;
       }

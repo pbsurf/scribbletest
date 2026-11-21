@@ -214,6 +214,7 @@ std::unique_ptr<PlatformCursor> platformCreateCursor(const Image* image, int hot
 }
 void platformSetCursor(const PlatformCursor* cursor) {}
 void platformSetFullscreen(bool enable) {}
+void platformSetWindowIcon(const Image* images, int count) {}
 void platformMessageBox(std::string title, std::string msg) { PLATFORM_LOG("%s: %s\n", title.c_str(), msg.c_str()); }
 bool platformOpenURL(const char* url) { PLATFORM_LOG("WriteTest: not opening URL %s\n", url); return false; }
 void platformKeepScreenOn(bool on) {}
