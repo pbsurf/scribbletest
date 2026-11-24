@@ -685,6 +685,7 @@ typedef struct {
   int srgb;
   int repeat;  // draw scene this many times per frame (for benchmarking, so per-frame overhead is less significant)
   int gpuRepeat;  // submit the frame's GL draws this many times (nanovg CPU work done once) - see main()
+  unsigned char* swbuf;  // --sw: render w/ nanovg_sw into this RGBA buffer (top row first) instead of GL
 } Renderer;
 
 static double nowSec(void);
@@ -692,9 +693,13 @@ static double nowSec(void);
 // if tFlush != NULL, it is set to time just before nvgEndFrame (where nanovg issues all GL draw calls)
 static void renderScene(Renderer* r, const Scene* scene, double* tFlush)
 {
-  nvgluBindFramebuffer(r->fb);
-  nvgluSetViewport(0, 0, r->w, r->h);
-  nvgluClear(nvgRGBAf(1, 1, 1, 1));
+  if(r->swbuf)
+    memset(r->swbuf, 0xff, (size_t)r->w*r->h*4);
+  else {
+    nvgluBindFramebuffer(r->fb);
+    nvgluSetViewport(0, 0, r->w, r->h);
+    nvgluClear(nvgRGBAf(1, 1, 1, 1));
+  }
   nvgBeginFrame(r->vg, r->w, r->h, 1.0f);
   for(int ii = 0; ii < r->repeat; ++ii) {
     nvgSave(r->vg);
@@ -712,6 +717,8 @@ static void renderScene(Renderer* r, const Scene* scene, double* tFlush)
 
 static int saveScene(Renderer* r, const char* path)
 {
+  if(r->swbuf)
+    return stbi_write_png(path, r->w, r->h, 4, r->swbuf, r->w*4);
   unsigned char* px = malloc((size_t)r->w*r->h*4);
   unsigned char* flipped = malloc((size_t)r->w*r->h*4);
   glPixelStorei(GL_PACK_ALIGNMENT, 4);
@@ -744,28 +751,29 @@ static int cmpDouble(const void* a, const void* b)
 //  nvgEndFrame (path flattening, text layout, etc.)
 static void benchScene(Renderer* r, const Scene* scene, int nframes, int warmup)
 {
+  int sw = r->swbuf != NULL;  // --sw: "flush" = nanovg_sw rasterization time (no GL calls)
 #ifndef NVGTEST_GLES
-  GLuint query;
-  glGenQueries(1, &query);
+  GLuint query = 0;
+  if(!sw) glGenQueries(1, &query);
 #endif
   double* gpu = malloc(nframes*sizeof(double));
   double* cpu = malloc(nframes*sizeof(double));
   double* wall = malloc(nframes*sizeof(double));
   for(int ii = -warmup; ii < nframes; ++ii) {
-    glFinish();
+    if(!sw) glFinish();
     GLuint64 ns = 0;
 #ifndef NVGTEST_GLES
-    glBeginQuery(GL_TIME_ELAPSED, query);
+    if(!sw) glBeginQuery(GL_TIME_ELAPSED, query);
 #endif
     double t0 = nowSec(), t1 = 0;
     renderScene(r, scene, &t1);
 #ifndef NVGTEST_GLES
-    glEndQuery(GL_TIME_ELAPSED);
+    if(!sw) glEndQuery(GL_TIME_ELAPSED);
 #endif
-    glFinish();
+    if(!sw) glFinish();
     double t2 = nowSec();
 #ifndef NVGTEST_GLES
-    glGetQueryObjectui64v(query, GL_QUERY_RESULT, &ns);  // blocks until available
+    if(!sw) glGetQueryObjectui64v(query, GL_QUERY_RESULT, &ns);  // blocks until available
 #endif
     if(ii >= 0) {
       gpu[ii] = ns*1E-6;
@@ -783,7 +791,7 @@ static void benchScene(Renderer* r, const Scene* scene, int nframes, int warmup)
   free(cpu);
   free(wall);
 #ifndef NVGTEST_GLES
-  glDeleteQueries(1, &query);
+  if(!sw) glDeleteQueries(1, &query);
 #endif
 }
 
@@ -919,7 +927,9 @@ static void usage(void)
          "  --repeat K       draw each scene K times per frame (default 1)\n"
          "  --gpu-repeat K   submit each frame's GL draws K times (CPU work once; default 1) - use for benchmarking\n"
          "                   on mobile: w/ --repeat, the GPU is idle during nanovg CPU work and may be downclocked\n"
-         "  --font PATH      .ttf to use (default Roboto-Regular.ttf from data dirs)\n");
+         "  --font PATH      .ttf to use (default Roboto-Regular.ttf from data dirs)\n"
+         "  --sw 0|1         render w/ nanovg_sw (XC paths, single thread) instead of GL; for --bench, flush =\n"
+         "                   rasterization time (nvgEndFrame)\n");
 }
 
 int main(int argc, char* argv[])
@@ -927,7 +937,7 @@ int main(int argc, char* argv[])
   const char* outDir = ".";
   const char* sceneNames[64];
   int nSceneNames = 0;
-  int sdf = 1, srgb = 1, w = 1024, h = 1024, bench = 0, warmup = 10, repeat = 1, gpuRepeat = 1;
+  int sw = 0, sdf = 1, srgb = 1, w = 1024, h = 1024, bench = 0, warmup = 10, repeat = 1, gpuRepeat = 1;
   float atlasPx = 48;
   const char* fontPath = NULL;
 
@@ -950,6 +960,7 @@ int main(int argc, char* argv[])
     else if(strcmp(arg, "--scene") == 0 && nSceneNames < 64) sceneNames[nSceneNames++] = val;
     else if(strcmp(arg, "--sdf") == 0) sdf = atoi(val);
     else if(strcmp(arg, "--srgb") == 0) srgb = atoi(val);
+    else if(strcmp(arg, "--sw") == 0) sw = atoi(val);
     else if(strcmp(arg, "--atlas") == 0) atlasPx = atof(val);
     else if(strcmp(arg, "--size") == 0) sscanf(val, "%dx%d", &w, &h);
     else if(strcmp(arg, "--bench") == 0) bench = atoi(val);
@@ -981,16 +992,23 @@ int main(int argc, char* argv[])
     if(!found) { fprintf(stderr, "nvgtest: no scene matches %s\n", sceneNames[ii]); return 2; }
   }
 
-  if(!initGL())
+  if(!sw && !initGL())
     return 1;
-  fprintf(stderr, "nvgtest: %s (%s); %s text, srgb %d, %dx%d\n", (const char*)glGetString(GL_RENDERER),
-      (const char*)glGetString(GL_VERSION), sdf ? "SDF" : "summed", srgb, w, h);
+  fprintf(stderr, "nvgtest: %s (%s); %s text, srgb %d, %dx%d\n", sw ? "nanovg_sw" : (const char*)glGetString(GL_RENDERER),
+      sw ? "XC" : (const char*)glGetString(GL_VERSION), sdf ? "SDF" : "summed", srgb, w, h);
 
   Renderer r;
+  memset(&r, 0, sizeof(r));
   r.w = w; r.h = h; r.srgb = srgb; r.repeat = repeat > 0 ? repeat : 1; r.gpuRepeat = gpuRepeat > 0 ? gpuRepeat : 1;
   int nvgFlags = NVG_NO_FONTSTASH | NVG_AUTOW_DEFAULT | (sdf ? NVG_SDF_TEXT : 0) | (srgb ? NVG_SRGB : 0);
-  r.vg = nvglCreate(nvgFlags);
-  if(!r.vg) { fprintf(stderr, "nvgtest: nvglCreate failed\n"); return 1; }
+  if(sw) {
+    r.vg = nvgswCreate(nvgFlags | NVGSW_PATHS_XC);
+    r.swbuf = malloc((size_t)w*h*4);
+    if(r.vg) nvgswSetFramebuffer(r.vg, r.swbuf, w, h, 0, 8, 16, 24);
+  }
+  else
+    r.vg = nvglCreate(nvgFlags);
+  if(!r.vg) { fprintf(stderr, "nvgtest: nvg create failed\n"); return 1; }
   FONScontext* fons = createFontstash(nvgFlags, 2*atlasPx);
   nvgSetFontStash(r.vg, fons);
   if(!fontPath)
@@ -1001,9 +1019,11 @@ int main(int argc, char* argv[])
   }
   nvgFontFace(r.vg, "sans");
   nvgAtlasTextThreshold(r.vg, atlasPx);
-  r.fb = nvgluCreateFramebuffer(r.vg, w, h, NVGLU_NO_NVG_IMAGE | (srgb ? NVG_IMAGE_SRGB : 0));
-  if(!r.fb) { fprintf(stderr, "nvgtest: unable to create framebuffer\n"); return 1; }
-  nvgluSetFramebufferSRGB(srgb);
+  if(!sw) {
+    r.fb = nvgluCreateFramebuffer(r.vg, w, h, NVGLU_NO_NVG_IMAGE | (srgb ? NVG_IMAGE_SRGB : 0));
+    if(!r.fb) { fprintf(stderr, "nvgtest: unable to create framebuffer\n"); return 1; }
+    nvgluSetFramebufferSRGB(srgb);
+  }
 
   int result = 0;
   if(!bench)
@@ -1030,14 +1050,20 @@ int main(int argc, char* argv[])
       fprintf(stderr, "nvgtest: error writing %s\n", atlasPath);
   }
 
-  GLenum err = glGetError();
+  GLenum err = sw ? GL_NO_ERROR : glGetError();
   if(err != GL_NO_ERROR) {
     fprintf(stderr, "nvgtest: GL error 0x%x\n", err);
     result = 1;
   }
 
-  nvgluDeleteFramebuffer(r.fb);
-  nvglDelete(r.vg);
-  shutdownGL();
+  if(sw) {
+    nvgswDelete(r.vg);
+    free(r.swbuf);
+  }
+  else {
+    nvgluDeleteFramebuffer(r.fb);
+    nvglDelete(r.vg);
+    shutdownGL();
+  }
   return result;
 }
